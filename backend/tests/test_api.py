@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from backend.app.main import create_app
+from app.main import create_app
 
 
 def test_health_check_returns_ok(tmp_path):

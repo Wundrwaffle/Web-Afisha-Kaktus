@@ -237,7 +237,8 @@
         }
 
         const screens = [...document.querySelectorAll('.screen')];
-    const homeGrid = document.querySelector('#home .events-grid');
+        const tabs = [...document.querySelectorAll('.nav-tab')];
+        const homeGrid = document.querySelector('#home .events-grid');
     const catalogGrid = document.querySelector('#catalog .events-grid');
     const catalogSearch = document.querySelector('#catalog .hero-search input');
     const catalogDate = document.querySelector('#catalog-date');
@@ -355,7 +356,6 @@
       // Всегда рендерим 6 недель × 7 дней = 42 ячейки дней + 7 заголовков = 49 ячеек (фиксированная структура)
       const totalCells = 49;
       let day = 1;
-      const daysInMonth = lastDay.getDate();
       
       for (let cell = 0; cell < totalCells; cell++) {
         const isWeekdayHeader = cell < 7;
