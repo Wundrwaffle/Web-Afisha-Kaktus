@@ -186,7 +186,7 @@
         <i class="brand-mark"></i><span>что у нас<br>там завтра<small>городская афиша</small></span>
       </a>
       <div class="top-search"><span class="search-icon">⌕</span><input placeholder="Найти событие, место или организатора" onkeydown="if(event.key==='Enter') searchFromTop(event)"></div>
-      <div class="nav-actions"><button class="link-btn" onclick="showScreen('calendar')">Календарь</button><button class="primary-btn" onclick="showScreen('form')">Добавить событие</button></div>
+      <div class="nav-actions"><button class="link-btn" onclick="showScreen('calendar')">Календарь</button><button class="primary-btn" onclick="showScreen('form')">Добавить событие</button><button class="ghost-btn" onclick="promptApiBase()" title="Настроить адрес API">⚙ API</button></div>
     </div>
   </header>
 
@@ -218,9 +218,25 @@
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button></nav>
   <div class="toast" id="toast"></div>
   <script>
-    const API_BASE = 'http://127.0.0.1:8000/api/v1';
-    const screens = [...document.querySelectorAll('.screen')];
-    const tabs = [...document.querySelectorAll('.nav-tab')];
+    // API base URL: можно переопределить через ?api=... или localStorage
+    // Локально: http://127.0.0.1:8000/api/v1
+    // Продакшн: https://ваш-бакенд.рф/api/v1
+    const API_BASE = (new URLSearchParams(window.location.search).get('api')) ||
+                         localStorage.getItem('api_base') ||
+                         'http://127.0.0.1:8000/api/v1';
+
+        // Функция для смены API base URL
+        function promptApiBase() {
+          const current = API_BASE;
+          const input = prompt('Введите базовый URL API (например, https://api.example.com/api/v1):\nТекущий: ' + current, current);
+          if (input && input.trim() !== current) {
+            localStorage.setItem('api_base', input.trim());
+            toast('API обновлён: ' + input.trim() + '. Страница перезагрузится...');
+            setTimeout(() => location.reload(), 800);
+          }
+        }
+
+        const screens = [...document.querySelectorAll('.screen')];
     const homeGrid = document.querySelector('#home .events-grid');
     const catalogGrid = document.querySelector('#catalog .events-grid');
     const catalogSearch = document.querySelector('#catalog .hero-search input');
