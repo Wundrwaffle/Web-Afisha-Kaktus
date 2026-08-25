@@ -496,25 +496,34 @@
         html += `<span class="weekday">${d}</span>`;
       });
 
-      // Пустые ячейки до 1-го числа
-      for (let i = 0; i < range.firstWeekday; i++) {
-        html += `<span></span>`;
-      }
+      // Всегда рендерим 6 недель × 7 дней = 42 ячейки дней + 7 заголовков = 49 ячеек (фиксированная структура)
+      const totalCells = 49;
+      let day = 1;
 
-      // Дни месяца
-      for (let day = 1; day <= range.daysInMonth; day++) {
-        const dateStr = `${currentCalendarDate.getFullYear()}-${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayEvents = eventsByDate[dateStr] || [];
-        const dateObj = new Date(dateStr + 'T00:00:00');
-        const isToday = dateObj.getTime() === today.getTime();
-        const hasEvents = dayEvents.length > 0;
+      for (let cell = 0; cell < totalCells; cell++) {
+        const isWeekdayHeader = cell < 7;
+        const dayCellIndex = cell - 7; // 0-41 для дней
+        const isBeforeMonth = !isWeekdayHeader && dayCellIndex < range.firstWeekday;
+        const isAfterMonth = !isWeekdayHeader && day > range.daysInMonth;
 
-        let classes = [];
-        if (isToday) classes.push('today');
-        if (hasEvents) classes.push('has-event');
-        const classStr = classes.length ? ` class="${classes.join(' ')}"` : '';
+        if (isBeforeMonth || isAfterMonth) {
+          // Пустые ячейки до/после месяца
+          html += `<span class="empty"></span>`;
+        } else {
+          const dateStr = `${currentCalendarDate.getFullYear()}-${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayEvents = eventsByDate[dateStr] || [];
+          const dateObj = new Date(dateStr + 'T00:00:00');
+          const isToday = dateObj.getTime() === today.getTime();
+          const hasEvents = dayEvents.length > 0;
 
-        html += `<span${classStr} data-date="${dateStr}" style="cursor:pointer">${day}${hasEvents ? `<br><small>${dayEvents.length} ${dayEvents.length === 1 ? 'событие' : 'события'}</small>` : ''}</span>`;
+          let classes = [];
+          if (isToday) classes.push('today');
+          if (hasEvents) classes.push('has-event');
+          const classStr = classes.length ? ` class="${classes.join(' ')}"` : '';
+
+          html += `<span${classStr} data-date="${dateStr}" style="cursor:pointer">${day}${hasEvents ? `<br><small>${dayEvents.length} ${dayEvents.length === 1 ? 'событие' : 'события'}</small>` : ''}</span>`;
+          day++;
+        }
       }
 
       document.getElementById('calendar-grid').innerHTML = html;
