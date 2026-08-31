@@ -23,6 +23,7 @@
       --radius: 18px;
     }
     * { box-sizing: border-box; }
+    html { scrollbar-gutter: stable; }
     body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Open Sans', sans-serif; }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
@@ -58,6 +59,39 @@
     .hero-search label { display: grid; gap: 7px; color: #aebbd0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
     .hero-search input, .hero-search select { width: 100%; padding: 13px 14px; border: 1px solid #30425e; background: #132542; color: #fff; border-radius: 10px; outline: 0; }
     .hero-search .primary-btn { height: 46px; white-space: nowrap; }
+    /* Панель фильтров каталога в стиле Яндекс.Афиши: «Когда» · «Тип события» · «Место» */
+    .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .facet { position: relative; }
+    .facet-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 12px 16px; font-weight: 700; font-size: 14px; color: var(--ink); transition: .15s ease; }
+    .facet-btn:hover { border-color: var(--accent); }
+    .facet-btn .caret { color: var(--muted); font-size: 11px; transition: .15s; }
+    .facet.open .facet-btn { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,255,.11); }
+    .facet.open .caret { transform: rotate(180deg); }
+    .facet-value { color: var(--accent-dark); }
+    .facet-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; min-width: 260px; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 14px; display: none; }
+    .facet.open .facet-pop { display: block; }
+    .facet-pop h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 2px 0 10px; }
+    .preset-list { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .preset { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 9px 11px; font-size: 13px; color: var(--ink); font-weight: 600; transition: .12s; }
+    .preset:hover { border-color: var(--accent); color: var(--accent-dark); }
+    .preset.active { background: var(--soft-blue); border-color: #aaddfa; color: var(--accent-dark); }
+    .facet-list { display: grid; max-height: 320px; overflow-y: auto; }
+    .facet-opt { text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 9px; font-size: 14px; color: var(--ink); font-weight: 600; }
+    .facet-opt:hover { background: var(--soft-blue); }
+    .facet-opt.active { background: var(--soft-blue); color: var(--accent-dark); }
+    .facet-opt.all { font-weight: 800; }
+    .range-cal { }
+    .range-cal .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .range-cal .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+    .range-cal .cal-grid span { padding: 7px 0; border-radius: 7px; font-size: 13px; color: var(--muted); cursor: pointer; }
+    .range-cal .cal-grid span.wd { font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--muted); cursor: default; }
+    .range-cal .cal-grid span.day:hover { background: var(--soft-blue); color: var(--accent-dark); }
+    .range-cal .cal-grid span.dim { color: #c3ccd9; }
+    .range-cal .cal-grid span.today { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 800; }
+    .range-cal .cal-grid span.sel { background: var(--accent); color: #fff; font-weight: 800; }
+    .range-cal .cal-grid span.range { background: var(--soft-blue); color: var(--accent-dark); }
+    .range-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .range-actions button { flex: 1; }
     .section-head { display: flex; align-items: center; justify-content: space-between; margin: 30px 0 15px; }
     .section-head h2 { font-size: 22px; }
     .section-head a { color: var(--accent-dark); font-size: 13px; font-weight: 700; text-decoration: none; }
@@ -81,6 +115,12 @@
     .card-body h3 { font-size: 16px; margin: 7px 0 8px; }
     .card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-weight: 700; font-size: 13px; }
     .free { color: var(--green); }
+    .load-more-wrap { display: flex; justify-content: center; margin-top: 28px; }
+    .load-more { padding: 12px 26px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-weight: 700; font-size: 15px; cursor: pointer; font-family: inherit; transition: .2s ease; }
+    .load-more:hover { border-color: var(--accent); color: var(--accent); }
+    .load-more:disabled { opacity: .55; cursor: default; }
+    .event-card.appearing { animation: card-in .45s ease both; }
+    @keyframes card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
     .calendar-strip { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; margin-top: 30px; align-items: start; }
     .panel { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; display: flex; flex-direction: column; }
     .calendar-strip .panel { height: 360px; } /* фиксированная высота панели календаря */
@@ -97,7 +137,25 @@
     .calendar-grid .empty { visibility: hidden; }
     .mini-list { display: grid; gap: 12px; }
     .mini-item { display: flex; gap: 12px; align-items: start; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    /* Лента дат как в Яндекс Афише */
+    .ribbon-wrap { display: flex; align-items: center; gap: 8px; margin: 4px 0 18px; }
+    .ribbon-wrap .date-ribbon { flex: 1; min-width: 0; }
+    .date-ribbon { display: flex; align-items: stretch; gap: 5px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; scroll-behavior: smooth; }
+    .date-ribbon::-webkit-scrollbar { display: none; }
+    .date-chip { min-width: 54px; flex: 0 0 auto; padding: 8px 4px 20px; border-radius: 10px; border: 1px solid var(--line); background: #fff; text-align: center; cursor: pointer; font: 800 16px/1 Montserrat; color: var(--ink); transition: border-color .15s, background .15s; position: relative; }
+    .date-chip small { display: block; margin-top: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: .04em; }
+    .date-chip:hover { border-color: var(--accent); background: var(--soft-blue); }
+    .date-chip.today { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .date-chip.today small { color: rgba(255,255,255,.85); }
+    .date-chip.selected { box-shadow: 0 0 0 2px var(--accent-dark) inset; border-color: var(--accent-dark); }
+    .date-chip.in-range:not(.selected) { background: #eef1f5; border-color: var(--line); }
+    .date-chip .cnt { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font: 800 10px Montserrat; font-style: normal; color: var(--accent-dark); line-height: 1; }
+    .date-chip.today .cnt { color: #fff; }
+    .ribbon-month { flex: 0 0 auto; display: flex; align-items: center; font: 800 11px Montserrat; text-transform: uppercase; color: var(--muted); letter-spacing: .06em; padding: 0 6px; }
+
     .mini-date { min-width: 44px; color: var(--accent-dark); font: 800 12px Montserrat; }
+    .day-group-title { margin: 16px 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .panel h3 + .mini-list, .panel h4.day-group-title + .mini-list { margin-top: 0; }
     .mini-item strong { display: block; font: 700 14px Montserrat; margin-bottom: 4px; }
     .mini-item span { color: var(--muted); font-size: 12px; }
     .detail-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 28px; }
@@ -196,16 +254,58 @@
       <div class="hero-search"><label>Что ищем<input placeholder="Концерт, спорт, выставка..."></label><label>Когда<select><option>Любая дата</option><option>Сегодня</option><option>Завтра</option><option>На выходных</option></select></label><label>Категория<select><option>Все категории</option><option>Музыка</option><option>Спорт</option><option>Культура</option></select></label><button class="primary-btn" onclick="showScreen('catalog')">Найти события</button></div>
       <div class="chips"><button class="chip active">Все события</button><button class="chip">Музыка</button><button class="chip">Культура</button><button class="chip">Спорт</button><button class="chip">Для детей</button><button class="chip">Еда</button></div>
       <div class="section-head"><h2>Скоро начнётся</h2><a href="#" onclick="showScreen('catalog');return false">Все события →</a></div>
+      <div class="ribbon-wrap">
+        <button class="ghost-btn" id="ribbon-prev" style="padding:7px 10px" aria-label="Прокрутить назад">←</button>
+        <div class="date-ribbon no-dots" id="home-date-ribbon"></div>
+        <button class="ghost-btn" id="ribbon-next" style="padding:7px 10px" aria-label="Прокрутить вперёд">→</button>
+        <button class="ghost-btn" id="ribbon-dots-toggle" style="padding:7px 10px" title="Показать/скрыть точки событий">●</button>
+      </div>
+      <div id="home-calendar-day-events" class="panel" style="display:none;margin-top:4px"></div>
       <div class="events-grid">
         <article class="event-card" onclick="showScreen('detail')"><div class="poster poster-1"><span class="date-pill">22<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Летний фестиваль</strong></div><div class="card-body"><div class="meta">СБ · 18:00 · Парк Гагарина</div><h3>Город звучит</h3><div class="card-foot"><span class="free">Бесплатно</span><span>18+</span></div></div></article>
         <article class="event-card"><div class="poster poster-2"><span class="date-pill">23<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Кино под открытым небом</strong></div><div class="card-body"><div class="meta">ВС · 21:30 · Площадь Побед</div><h3>Большой экран</h3><div class="card-foot"><span>от 350 ₽</span><span>12+</span></div></div></article>
         <article class="event-card"><div class="poster poster-3"><span class="date-pill">24<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Маркет локальных брендов</strong></div><div class="card-body"><div class="meta">ПН · 12:00 · Арт-пространство</div><h3>Своё место</h3><div class="card-foot"><span>от 200 ₽</span><span>6+</span></div></div></article>
         <article class="event-card"><div class="poster poster-4"><span class="date-pill">27<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Танцы до полуночи</strong></div><div class="card-body"><div class="meta">ЧТ · 20:00 · Клуб «Ритм»</div><h3>Ночной open air</h3><div class="card-foot"><span>от 700 ₽</span><span>18+</span></div></div></article>
       </div>
-      <div class="calendar-strip"><div class="panel"><div class="month"><button class="ghost-btn" id="home-prev-month" style="padding:7px 10px">←</button><strong id="home-calendar-month">Август 2026</strong><button class="ghost-btn" id="home-next-month" style="padding:7px 10px">→</button></div><div class="calendar-layout"><div class="calendar-grid" id="home-calendar-grid"></div><div id="home-calendar-day-events" class="panel" style="display:none"></div></div></div></div>
     </div></section>
 
-    <section id="catalog" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Афиша событий</div><h1>Найти своё событие</h1><p>Фильтруйте по дате, категории, району и стоимости.</p></div></div><div class="hero-search"><label>Поиск<input value="события в городе"></label><label>Дата<select id="catalog-date"><option value="">Все даты</option><option value="2026-06-22">22 июня</option><option value="2026-06-23">23 июня</option></select></label><label>Категория<select id="catalog-category"><option value="">Все категории</option><option value="Музыка">Музыка</option><option value="Кино">Кино</option></select></label><label>Район<select><option>Любой район</option></select></label><button class="primary-btn" onclick="toast('Фильтры применены')">Применить</button></div><div class="section-head"><h2>48 событий</h2><select id="catalog-sort" class="ghost-btn" style="padding:10px 12px"><option value="date">Сначала ближайшие</option><option value="title">По названию</option></select></div><div class="events-grid"><article class="event-card" onclick="showScreen('detail')"><div class="poster poster-1"><span class="date-pill">22<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Летний фестиваль</strong></div><div class="card-body"><div class="meta">СБ · 18:00 · Парк Гагарина</div><h3>Город звучит</h3><div class="card-foot"><span class="free">Бесплатно</span><span>18+</span></div></div></article><article class="event-card"><div class="poster poster-2"><span class="date-pill">23<br>ИЮНЯ</span><strong class="poster-title">Кино под открытым небом</strong></div><div class="card-body"><div class="meta">ВС · 21:30 · Площадь Побед</div><h3>Большой экран</h3><div class="card-foot"><span>от 350 ₽</span><span>12+</span></div></div></article><article class="event-card"><div class="poster poster-3"><span class="date-pill">24<br>ИЮНЯ</span><strong class="poster-title">Маркет локальных брендов</strong></div><div class="card-body"><div class="meta">ПН · 12:00 · Арт-пространство</div><h3>Своё место</h3><div class="card-foot"><span>от 200 ₽</span><span>6+</span></div></div></article><article class="event-card"><div class="poster poster-4"><span class="date-pill">27<br>ИЮНЯ</span><strong class="poster-title">Танцы до полуночи</strong></div><div class="card-body"><div class="meta">ЧТ · 20:00 · Клуб «Ритм»</div><h3>Ночной open air</h3><div class="card-foot"><span>от 700 ₽</span><span>18+</span></div></div></article></div></div></section>
+    <section id="catalog" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Афиша событий</div><h1>Найти своё событие</h1><p>Фильтруйте по дате, категории, району и стоимости.</p></div></div><div class="filter-bar">
+      <div class="facet" id="facet-when">
+        <button class="facet-btn" data-facet="when">Когда<span class="facet-value" id="when-value">Все время</span><span class="caret">▾</span></button>
+        <div class="facet-pop">
+          <h4>Быстрый выбор</h4>
+          <div class="preset-list" id="when-presets">
+            <button class="preset" data-preset="all">Всё время</button>
+            <button class="preset" data-preset="today">Сегодня</button>
+            <button class="preset" data-preset="tomorrow">Завтра</button>
+            <button class="preset" data-preset="weekend">На выходных</button>
+            <button class="preset" data-preset="week">Неделя</button>
+            <button class="preset" data-preset="month">Месяц</button>
+          </div>
+          <h4 style="margin-top:14px">Или выберите период</h4>
+          <div class="range-cal" id="when-cal"></div>
+          <div class="range-actions">
+            <button class="ghost-btn" id="when-clear">Сбросить</button>
+            <button class="primary-btn" id="when-apply">Применить период</button>
+          </div>
+        </div>
+      </div>
+      <div class="facet" id="facet-type">
+        <button class="facet-btn" data-facet="type">Тип события<span class="facet-value" id="type-value">Все</span><span class="caret">▾</span></button>
+        <div class="facet-pop">
+          <div class="facet-list" id="type-list"></div>
+        </div>
+      </div>
+      <div class="facet" id="facet-place">
+        <button class="facet-btn" data-facet="place">Место<span class="facet-value" id="place-value">Все площадки</span><span class="caret">▾</span></button>
+        <div class="facet-pop">
+          <div class="facet-list" id="place-list"></div>
+        </div>
+      </div>
+      <div class="facet" style="margin-left:auto">
+        <select id="catalog-sort" class="ghost-btn" style="padding:12px 14px;font-weight:700"><option value="date">Сначала ближайшие</option><option value="title">По названию</option></select>
+      </div>
+    </div><div class="section-head"><h2>48 событий</h2></div><div class="events-grid"></div></div></section>
 
     <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn" id="prev-month" style="padding:7px 10px">← Предыдущий</button><h2 id="calendar-month">Август 2026</h2><button class="ghost-btn" id="next-month" style="padding:7px 10px">Следующий →</button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel" style="margin-top:16px;display:none"></div></div></div></section>
 
@@ -240,18 +340,28 @@
         const tabs = [...document.querySelectorAll('.nav-tab')];
         const homeGrid = document.querySelector('#home .events-grid');
     const catalogGrid = document.querySelector('#catalog .events-grid');
-    const catalogSearch = document.querySelector('#catalog .hero-search input');
-    const catalogDate = document.querySelector('#catalog-date');
-    const catalogCategory = document.querySelector('#catalog-category');
     const catalogSort = document.querySelector('#catalog-sort');
-    const catalogApply = document.querySelector('#catalog .hero-search .primary-btn');
+    const whenValue = document.querySelector('#when-value');
+    const typeValue = document.querySelector('#type-value');
+    const placeValue = document.querySelector('#place-value');
+    const typeList = document.querySelector('#type-list');
+    const placeList = document.querySelector('#place-list');
+
+    // Состояние фильтров каталога (Яндекс.Афиша)
+    const catalogFilters = {
+      dateFrom: null,   // 'YYYY-MM-DD' или null
+      dateTo: null,
+      category: null,   // категория или null
+      venue: null,      // площадка или null
+      sort: 'date',
+    };
 
     function showScreen(name) {
       screens.forEach(s => s.classList.toggle('active', s.id === name));
       tabs.forEach(t => t.classList.toggle('active', t.dataset.screen === name));
       window.scrollTo({top: 0, behavior: 'smooth'});
       if (name === 'home') loadEvents({});
-      if (name === 'catalog') loadEvents({search: catalogSearch?.value.trim() || ''});
+      if (name === 'catalog') applyCatalogFilters();
       if (name === 'calendar') loadCalendar();
     }
 
@@ -282,160 +392,136 @@
       return response.json();
     }
 
-    async function loadEvents(params = {}) {
+    // --- Пагинация «Показать ещё» (как в Яндекс.Афише) ---
+    // Начально показываем 2 ряда плиток, по клику добавляем 3 ряда.
+    const INITIAL_ROWS = 2;
+    const EXTRA_ROWS = 3;
+    let eventsState = { home: [], catalog: [] };
+    let shownRows = { home: INITIAL_ROWS, catalog: INITIAL_ROWS };
+
+    // Сколько колонок в сетке на текущей ширине экрана
+    function gridColumns(gridEl) {
+      return getComputedStyle(gridEl).gridTemplateColumns.split(' ').length;
+    }
+
+    async function loadEvents(params = {}, target = 'both') {
       try {
         const data = await fetchEvents(params);
-        const cards = data.items.map(eventCard).join('');
-        if (homeGrid) homeGrid.innerHTML = cards || '<p class="meta">Событий пока нет.</p>';
-        if (catalogGrid) catalogGrid.innerHTML = cards || '<p class="meta">По заданным условиям ничего не найдено.</p>';
-        const catalogTitle = document.querySelector('#catalog .section-head h2');
-        if (catalogTitle) catalogTitle.textContent = `${data.total} событий`;
-        // Обновляем домашний календарь
-        loadHomeCalendarStrip(data.items);
+        const items = data.items;
+
+        if (target === 'home' || target === 'both') {
+          if (homeGrid) {
+            eventsState.home = items;
+            shownRows.home = INITIAL_ROWS;
+            renderEvents('home');
+          }
+        }
+        if (target === 'catalog' || target === 'both') {
+          if (catalogGrid) {
+            eventsState.catalog = items;
+            shownRows.catalog = INITIAL_ROWS;
+            renderEvents('catalog');
+          }
+        }
+        if (target === 'catalog' || target === 'both') {
+          const catalogTitle = document.querySelector('#catalog .section-head h2');
+          if (catalogTitle) catalogTitle.textContent = `${data.total} событий`;
+        }
       } catch (error) {
         toast(error.message);
       }
     }
 
-    // Отдельная загрузка для календарной полоски на главной (текущий месяц)
-    async function loadHomeCalendarStrip(eventsFromList) {
-      console.log('loadHomeCalendarStrip called, eventsFromList:', eventsFromList ? eventsFromList.length : 'none');
-      // Если события не переданы (вызов из showScreen('home')), загружаем текущий месяц
-      if (!eventsFromList) {
-        const today = new Date();
-        const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-        console.log('Fetching calendar for:', start, 'to', end);
-        try {
-          const response = await fetch(`${API_BASE}/events/calendar?start_date=${start}&end_date=${end}`);
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Calendar data received:', data.items.length, 'events');
-            renderHomeCalendarGrid(data.items, homeCalendarDate);
-          } else {
-            console.error('Calendar fetch failed:', response.status);
+    function renderEvents(which, { append = false } = {}) {
+      const grid = which === 'home' ? homeGrid : catalogGrid;
+      const items = eventsState[which];
+      const cols = gridColumns(grid);
+      const rows = shownRows[which];
+      const visible = rows * cols;
+
+      const emptyMsg = which === 'home' ? 'Событий пока нет.' : 'По заданным условиям ничего не найдено.';
+      const batch = items.slice(0, visible);
+
+      if (append) {
+        // Дозагрузка: добавляем только новые карточки, не трогая уже рендеренные.
+        let already = grid.querySelectorAll('.event-card').length;
+        const firstNew = items.slice(already, visible);
+        if (firstNew.length) {
+          const frag = document.createElement('template');
+          frag.innerHTML = firstNew.map(eventCard).join('');
+          [...frag.content.children].forEach((node, i) => {
+            node.classList.add('appearing');
+            node.style.animationDelay = `${i * 70}ms`;
+            grid.appendChild(node);
+          });
+          // Плавный скролл к первой новой плитке
+          const firstCard = grid.querySelectorAll('.event-card')[already];
+          if (firstCard) {
+            firstCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
-        } catch (e) {
-          console.warn('Home calendar strip load failed', e);
         }
-        return;
+      } else {
+        grid.innerHTML = batch.map(eventCard).join('') || `<p class="meta">${emptyMsg}</p>`;
       }
-      // Иначе рендерим переданные события (текущий месяц из списка)
-      console.log('Rendering calendar with events from list:', eventsFromList.length);
-      renderHomeCalendarGrid(eventsFromList, homeCalendarDate);
+
+      // Обновляем кнопку «Показать ещё» под сеткой
+      let btn = grid.parentElement.querySelector('.load-more');
+      if (!btn) {
+        const wrap = document.createElement('div');
+        wrap.className = 'load-more-wrap';
+        wrap.innerHTML = '<button class="load-more">Показать ещё</button>';
+        grid.after(wrap);
+        btn = wrap.querySelector('.load-more');
+        btn.addEventListener('click', () => {
+          shownRows[which] += EXTRA_ROWS;
+          renderEvents(which, { append: true });
+        });
+      }
+      btn.hidden = items.length <= visible;
     }
 
-    function renderHomeCalendarGrid(events, renderDate) {
-      console.log('renderHomeCalendarGrid called, events:', events.length, 'renderDate:', renderDate);
-      // Используем переданную дату или homeCalendarDate, а не today
-      const date = renderDate || homeCalendarDate;
-      const year = date.getFullYear();
-      const month = date.getMonth();
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-      const firstWeekday = (firstDay.getDay() + 6) % 7;
-      const daysInMonth = lastDay.getDate();
-      const monthName = firstDay.toLocaleString('ru-RU', {month: 'long', year: 'numeric'});
-      const today = new Date(); // для проверки "сегодня"
-
-      // Группируем события по датам
-      const eventsByDate = {};
-      events.forEach(event => {
-        if (!eventsByDate[event.date]) eventsByDate[event.date] = [];
-        eventsByDate[event.date].push(event);
-      });
-      console.log('Events grouped by date:', Object.keys(eventsByDate).length, 'dates');
-
-      document.getElementById('home-calendar-month').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-
-      let html = '';
-      ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => {
-        html += `<span class="weekday">${d}</span>`;
-      });
-
-      // Всегда рендерим 6 недель × 7 дней = 42 ячейки дней + 7 заголовков = 49 ячеек (фиксированная структура)
-      const totalCells = 49;
-      let day = 1;
-      
-      for (let cell = 0; cell < totalCells; cell++) {
-        const isWeekdayHeader = cell < 7;
-        const dayCellIndex = cell - 7; // 0-41 для дней
-        const isBeforeMonth = !isWeekdayHeader && dayCellIndex < firstWeekday;
-        const isAfterMonth = !isWeekdayHeader && day > daysInMonth;
-        
-        if (isBeforeMonth || isAfterMonth) {
-          // Пустые ячейки до/после месяца
-          html += `<span class="empty"></span>`;
-        } else {
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const dayEvents = eventsByDate[dateStr] || [];
-          const dateObj = new Date(dateStr + 'T00:00:00');
-          const isToday = dateObj.getTime() === today.getTime();
-          const hasEvents = dayEvents.length > 0;
-
-          let classes = [];
-          if (isToday) classes.push('today');
-          if (hasEvents) classes.push('has-event');
-          const classStr = classes.length ? ` class="${classes.join(' ')}"` : '';
-
-          html += `<span${classStr} data-date="${dateStr}" style="cursor:pointer">${day}${hasEvents ? `<br><small>${dayEvents.length} ${dayEvents.length === 1 ? 'событие' : 'события'}</small>` : ''}</span>`;
-          day++;
-        }
-      }
-
-      const grid = document.getElementById('home-calendar-grid');
-      console.log('Setting grid innerHTML, length:', html.length);
-      grid.innerHTML = html;
-      console.log('Grid innerHTML set, children:', grid.children.length);
-
-      // Клик по дню -> показать события справа
-      grid.querySelectorAll('span[data-date]').forEach(cell => {
-        cell.addEventListener('click', () => showHomeDayEvents(cell.dataset.date, eventsByDate[cell.dataset.date] || []));
-      });
-
-      // Переподключаем Prev/Next кнопки (addEventListener чтобы не сбивались при ререндере)
-      const prevBtn = document.getElementById('home-prev-month');
-      const nextBtn = document.getElementById('home-next-month');
-      if (prevBtn) {
-        prevBtn.replaceWith(prevBtn.cloneNode(true)); // убираем старые слушатели
-        document.getElementById('home-prev-month').addEventListener('click', () => navigateHomeCalendar(-1));
-      }
-      if (nextBtn) {
-        nextBtn.replaceWith(nextBtn.cloneNode(true));
-        document.getElementById('home-next-month').addEventListener('click', () => navigateHomeCalendar(1));
-      }
-    }
-
-    let homeCalendarDate = new Date(); // текущий месяц
-
-    async function navigateHomeCalendar(delta) {
-      console.log('navigateHomeCalendar called, delta:', delta);
-      homeCalendarDate.setMonth(homeCalendarDate.getMonth() + delta);
-      const start = new Date(homeCalendarDate.getFullYear(), homeCalendarDate.getMonth(), 1).toISOString().split('T')[0];
-      const end = new Date(homeCalendarDate.getFullYear(), homeCalendarDate.getMonth() + 1, 0).toISOString().split('T')[0];
-      console.log('Fetching calendar for:', start, 'to', end);
+    // Отдельная загрузка для ленты дат на главной (независимо от фильтров каталога)
+    async function loadHomeCalendarStrip() {
+      const today = new Date();
+      const start = today.toISOString().split('T')[0];
+      const endD = new Date(today);
+      endD.setMonth(endD.getMonth() + 2);
+      const end = endD.toISOString().split('T')[0];
       try {
         const response = await fetch(`${API_BASE}/events/calendar?start_date=${start}&end_date=${end}`);
         if (response.ok) {
           const data = await response.json();
-          console.log('Calendar data received:', data.items.length, 'events');
-          renderHomeCalendarGrid(data.items, homeCalendarDate);
-        } else {
-          console.error('Calendar fetch failed:', response.status);
+          renderDateRibbon(data.items);
         }
       } catch (e) {
-        console.error('navigateHomeCalendar error:', e);
-        toast('Не удалось загрузить календарь');
+        console.warn('Home calendar strip load failed', e);
       }
-      document.getElementById('home-calendar-day-events').style.display = 'none';
+    }
+    loadHomeCalendarStrip();
+
+    function pluralEvents(n) {
+      if (n % 10 === 1 && n % 100 !== 11) return `${n} событие`;
+      if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return `${n} события`;
+      return `${n} событий`;
     }
 
-    function showHomeDayEvents(dateStr, events) {
-      const container = document.getElementById('home-calendar-day-events');
-      const dateObj = new Date(dateStr + 'T00:00:00');
-      const formattedDate = dateObj.toLocaleString('ru-RU', {day: 'numeric', month: 'long', weekday: 'long'});
+    // Панель событий дня/диапазона с группировкой по дням
+    function renderDayEventsPanel(container, events) {
+      const byDate = {};
+      events.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+      const dates = Object.keys(byDate).sort();
+      const total = events.length;
+
       container.style.display = 'block';
-      container.innerHTML = `<h3>${formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)} · ${events.length} ${events.length === 1 ? 'событие' : 'события'}</h3><div class="mini-list">${events.map(event => `<div class="mini-item" data-slug="${escapeHtml(event.slug)}" style="cursor:pointer"><div class="mini-date">${escapeHtml(event.time)}</div><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(event.venue)} · ${escapeHtml(event.category)}</span></div></div>`).join('')}</div>`;
+      container.innerHTML =
+        (total ? '' : '<h3>На выбранные даты событий нет</h3>') +
+        dates.map(dateStr => {
+          const dateObj = new Date(dateStr + 'T00:00:00');
+          const formattedDate = dateObj.toLocaleString('ru-RU', {day: 'numeric', month: 'long', weekday: 'long'});
+          const dayEvents = byDate[dateStr];
+          return `<h4 class="day-group-title">${formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)} · ${pluralEvents(dayEvents.length)}</h4>
+          <div class="mini-list">${dayEvents.map(event => `<div class="mini-item" data-slug="${escapeHtml(event.slug)}" style="cursor:pointer"><div class="mini-date">${escapeHtml(event.time)}</div><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(event.venue)} · ${escapeHtml(event.category)}</span></div></div>`).join('')}</div>`;
+        }).join('');
       container.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 
       // Клик по событию -> карточка
@@ -443,6 +529,119 @@
         item.addEventListener('click', () => showEvent(item.dataset.slug));
       });
     }
+
+    function showHomeDayEvents(dateStr, events) {
+      renderDayEventsPanel(document.getElementById('home-calendar-day-events'), events);
+    }
+
+    // ===== Лента дат как в Яндекс Афише =====
+    let ribbonEventsByDate = {};
+    let rangeStart = null;   // первый клик — дата начала
+    let appliedRange = null; // применённый интервал {from, to} для подсветки
+
+    function pluralEvents(n) {
+      if (n % 10 === 1 && n % 100 !== 11) return `${n} событие`;
+      if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return `${n} события`;
+      return `${n} событий`;
+    }
+
+    function renderDateRibbon(events) {
+      // Группируем события по датам
+      ribbonEventsByDate = {};
+      (events || []).forEach(event => {
+        if (!ribbonEventsByDate[event.date]) ribbonEventsByDate[event.date] = [];
+        ribbonEventsByDate[event.date].push(event);
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(today);
+      end.setMonth(end.getMonth() + 2); // ~2 месяца вперёд
+
+      const weekdayFmt = new Intl.DateTimeFormat('ru-RU', {weekday: 'short'});
+      const monthFmt = new Intl.DateTimeFormat('ru-RU', {month: 'long'});
+      let html = '';
+      let lastMonth = null;
+
+      for (const d = new Date(today); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (d.getMonth() !== lastMonth) {
+          lastMonth = d.getMonth();
+          const mn = monthFmt.format(d);
+          html += `<span class="ribbon-month">${mn.charAt(0).toUpperCase() + mn.slice(1)}</span>`;
+        }
+        const isToday = d.getTime() === today.getTime();
+        const cnt = (ribbonEventsByDate[dateStr] || []).length;
+        const wd = weekdayFmt.format(d);
+        html += `<button class="date-chip${isToday ? ' today' : ''}" data-date="${dateStr}">${d.getDate()}<small>${wd}</small>${cnt ? `<i class="cnt">${cnt}</i>` : ''}</button>`;
+      }
+
+      const ribbon = document.getElementById('home-date-ribbon');
+      ribbon.innerHTML = html;
+      ribbon.querySelectorAll('.date-chip').forEach(chip => {
+        chip.addEventListener('click', () => onRibbonChipClick(chip.dataset.date));
+      });
+      updateRangeHighlight();
+    }
+
+    // Выбор интервала двумя кликами: 1-й клик — дата начала, 2-й — дата конца
+    function onRibbonChipClick(dateStr) {
+      if (!rangeStart) {
+        // Первый клик — фиксируем начало интервала
+        rangeStart = dateStr;
+        appliedRange = null;
+        updateRangeHighlight();
+        return;
+      }
+
+      // Второй клик — завершаем интервал
+      let from = rangeStart;
+      let to = dateStr;
+      if (to < from) [from, to] = [to, from]; // клик раньше начала — разворачиваем
+
+      appliedRange = {from, to};
+      rangeStart = null;
+
+      showHomeDayEvents(from, mergeRangeEvents(from, to));
+      // Синхронизируем интервал с фильтром «Когда» каталога
+      catalogFilters.dateFrom = from;
+      catalogFilters.dateTo = to;
+      updateWhenLabel();
+      applyCatalogFilters();
+      updateRangeHighlight();
+    }
+
+    function mergeRangeEvents(from, to) {
+      const merged = [];
+      for (const [date, evts] of Object.entries(ribbonEventsByDate)) {
+        if (date >= from && date <= to) merged.push(...evts);
+      }
+      return merged.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+    }
+
+    function updateRangeHighlight() {
+      document.querySelectorAll('#home-date-ribbon .date-chip').forEach(c => {
+        const d = c.dataset.date;
+        const isStart = rangeStart !== null && d === rangeStart;
+        const inApplied = appliedRange !== null && d >= appliedRange.from && d <= appliedRange.to;
+        c.classList.toggle('selected', isStart);
+        c.classList.toggle('in-range', !isStart && inApplied);
+      });
+    }
+
+    // Стрелки прокрутки ленты (плавный скролл на ширину окна ленты)
+    function scrollRibbon(dir) {
+      const ribbon = document.getElementById('home-date-ribbon');
+      if (ribbon) ribbon.scrollBy({left: dir * ribbon.clientWidth * 0.9, behavior: 'smooth'});
+    }
+    document.getElementById('ribbon-prev')?.addEventListener('click', () => scrollRibbon(-1));
+    document.getElementById('ribbon-next')?.addEventListener('click', () => scrollRibbon(1));
+    // Переключатель точек событий
+    document.getElementById('ribbon-dots-toggle')?.addEventListener('click', (e) => {
+      const ribbon = document.getElementById('home-date-ribbon');
+      const hidden = ribbon.classList.toggle('no-dots');
+      e.currentTarget.style.opacity = hidden ? '.45' : '1';
+    });
 
     async function loadCalendar() {
       try {
@@ -535,17 +734,7 @@
     }
 
     function showDayEvents(dateStr, events) {
-      const container = document.getElementById('calendar-day-events');
-      const dateObj = new Date(dateStr + 'T00:00:00');
-      const formattedDate = dateObj.toLocaleString('ru-RU', {day: 'numeric', month: 'long', weekday: 'long'});
-      container.style.display = 'block';
-      container.innerHTML = `<h3>${formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)} · ${events.length} ${events.length === 1 ? 'событие' : 'события'}</h3><div class="mini-list">${events.map(event => `<div class="mini-item" data-slug="${escapeHtml(event.slug)}" style="cursor:pointer"><div class="mini-date">${escapeHtml(event.time)}</div><div><strong>${escapeHtml(event.title)}</strong><span>${escapeHtml(event.venue)} · ${escapeHtml(event.category)}</span></div></div>`).join('')}</div>`;
-      container.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-
-      // Клик по событию -> карточка
-      container.querySelectorAll('.mini-item[data-slug]').forEach(item => {
-        item.addEventListener('click', () => showEvent(item.dataset.slug));
-      });
+      renderDayEventsPanel(document.getElementById('calendar-day-events'), events);
     }
 
     let calendarStartDate = '2026-08-01';
@@ -582,23 +771,192 @@
 
     function searchFromTop(event) {
       const value = event.currentTarget.value.trim();
-      catalogSearch.value = value;
       showScreen('catalog');
-      loadEvents({search: value});
+      // Поиск сверху фильтрует по строке; кладём в фильтры и применяем
+      if (value) {
+        catalogFilters.search = value;
+      } else {
+        delete catalogFilters.search;
+      }
+      applyCatalogFilters();
     }
 
-    function applyCatalogFilters() {
-      loadEvents({
-        search: catalogSearch.value.trim(),
-        category: catalogCategory.value,
-        date_from: catalogDate.value,
-        date_to: catalogDate.value,
-        sort: catalogSort.value,
+    // === Фильтры каталога в стиле Яндекс.Афиши ===
+    function applyCatalogFilters(showToast = false) {
+      const params = { sort: catalogFilters.sort || 'date' };
+      if (catalogFilters.dateFrom) params.date_from = catalogFilters.dateFrom;
+      if (catalogFilters.dateTo) params.date_to = catalogFilters.dateTo;
+      if (catalogFilters.category) params.category = catalogFilters.category;
+      if (catalogFilters.venue) params.venue = catalogFilters.venue;
+      if (catalogFilters.search) params.search = catalogFilters.search;
+      loadEvents(params, 'catalog');
+      if (showToast) toast('Фильтры применены');
+    }
+
+    // Открытие/закрытие фасетов
+    document.querySelectorAll('.facet-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const facet = btn.closest('.facet');
+        const wasOpen = facet.classList.contains('open');
+        document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
+        if (!wasOpen) facet.classList.add('open');
+        e.stopPropagation();
       });
-      toast('Фильтры применены');
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.facet')) document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
+    });
+
+    // --- «Тип события»: список категорий ---
+    const CATEGORIES = ['Музыка', 'Кино', 'Театр', 'Спорт', 'Культура', 'Для детей', 'Еда', 'Лекции', 'Мастер-классы', 'Юмор', 'Развлечения', 'Выставки'];
+    function renderTypeList() {
+      typeList.innerHTML =
+        `<button class="facet-opt all${!catalogFilters.category ? ' active' : ''}" data-cat="">Все события</button>` +
+        CATEGORIES.map(c => `<button class="facet-opt${catalogFilters.category === c ? ' active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+      typeList.querySelectorAll('.facet-opt').forEach(opt => {
+        opt.addEventListener('click', () => {
+          catalogFilters.category = opt.dataset.cat || null;
+          typeValue.textContent = catalogFilters.category || 'Все';
+          document.querySelector('#facet-type').classList.remove('open');
+          applyCatalogFilters();
+        });
+      });
     }
 
-    catalogApply?.addEventListener('click', applyCatalogFilters);
+    // --- «Место»: площадки (из API) ---
+    async function loadVenues() {
+      try {
+        const response = await fetch(`${API_BASE}/meta/venues`);
+        if (!response.ok) throw new Error('Не удалось загрузить площадки');
+        const data = await response.json();
+        renderPlaceList(data.items || []);
+      } catch (error) {
+        renderPlaceList([]);
+      }
+    }
+    function renderPlaceList(venues) {
+      placeList.innerHTML =
+        `<button class="facet-opt all${!catalogFilters.venue ? ' active' : ''}" data-place="">Все площадки</button>` +
+        venues.map(v => `<button class="facet-opt${catalogFilters.venue === v ? ' active' : ''}" data-place="${escapeHtml(v)}">${escapeHtml(v)}</button>`).join('');
+      placeList.querySelectorAll('.facet-opt').forEach(opt => {
+        opt.addEventListener('click', () => {
+          catalogFilters.venue = opt.dataset.place || null;
+          placeValue.textContent = catalogFilters.venue || 'Все площадки';
+          document.querySelector('#facet-place').classList.remove('open');
+          applyCatalogFilters();
+        });
+      });
+    }
+
+    // --- «Когда»: пресеты + календарь периода ---
+    function iso(date) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+    function updateWhenLabel() {
+      if (catalogFilters.dateFrom && catalogFilters.dateTo) {
+        const from = catalogFilters.dateFrom.slice(8, 10) + '.' + catalogFilters.dateFrom.slice(5, 7);
+        const to = catalogFilters.dateTo.slice(8, 10) + '.' + catalogFilters.dateTo.slice(5, 7);
+        whenValue.textContent = catalogFilters.dateFrom === catalogFilters.dateTo
+          ? from
+          : `${from} — ${to}`;
+      } else {
+        whenValue.textContent = 'Все время';
+      }
+    }
+    document.querySelectorAll('#when-presets .preset').forEach(p => {
+      p.addEventListener('click', () => {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const tm = new Date(today);
+        let from = null, to = null;
+        switch (p.dataset.preset) {
+          case 'all': from = null; to = null; break;
+          case 'today': from = today; to = today; break;
+          case 'tomorrow': from = new Date(today); from.setDate(from.getDate() + 1); to = from; break;
+          case 'weekend': {
+            const dow = (today.getDay() + 6) % 7; // Пн=0..Вс=6
+            from = new Date(today); from.setDate(from.getDate() + (5 - dow)); // суббота
+            to = new Date(from); to.setDate(to.getDate() + 1); // воскресенье
+            break;
+          }
+          case 'week': from = today; to = new Date(today); to.setDate(to.getDate() + 7); break;
+          case 'month': from = today; to = new Date(today); to.setMonth(to.getMonth() + 1); break;
+        }
+        catalogFilters.dateFrom = from ? iso(from) : null;
+        catalogFilters.dateTo = to ? iso(to) : null;
+        updateWhenLabel();
+        document.querySelector('#facet-when').classList.remove('open');
+        applyCatalogFilters();
+      });
+    });
+
+    // Календарь выбора периода внутри «Когда»
+    let whenCalMonth = new Date(); whenCalMonth.setDate(1);
+    let whenSelFrom = null, whenSelTo = null;
+    function renderWhenCal() {
+      const el = document.getElementById('when-cal');
+      const weekdayFmt = new Intl.DateTimeFormat('ru-RU', {weekday: 'short'});
+      const monthFmt = new Intl.DateTimeFormat('ru-RU', {month: 'long', year: 'numeric'});
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const y = whenCalMonth.getFullYear(), m = whenCalMonth.getMonth();
+      const firstWeekday = (new Date(y, m, 1).getDay() + 6) % 7;
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+      let html = `<div class="cal-nav"><button class="ghost-btn" id="when-prev" type="button" style="padding:4px 9px">‹</button><strong>${monthFmt.format(whenCalMonth)}</strong><button class="ghost-btn" id="when-next" type="button" style="padding:4px 9px">›</button></div><div class="cal-grid">`;
+      ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => html += `<span class="wd">${d}</span>`);
+      for (let i = 0; i < firstWeekday; i++) html += `<span></span>`;
+      for (let day = 1; day <= daysInMonth; day++) {
+        const ds = iso(new Date(y, m, day));
+        const cls = ['day'];
+        if (ds === iso(today)) cls.push('today');
+        if (whenSelFrom && ds === whenSelFrom) cls.push('sel');
+        if (whenSelTo && ds === whenSelTo) cls.push('sel');
+        if (whenSelFrom && whenSelTo && ds > (whenSelFrom < whenSelTo ? whenSelFrom : whenSelTo) && ds < (whenSelFrom < whenSelTo ? whenSelTo : whenSelFrom)) cls.push('range');
+        html += `<span class="${cls.join(' ')}" data-date="${ds}">${day}</span>`;
+      }
+      html += `</div>`;
+      el.innerHTML = html;
+
+      el.querySelector('#when-prev').addEventListener('click', () => { whenCalMonth.setMonth(whenCalMonth.getMonth() - 1); renderWhenCal(); });
+      el.querySelector('#when-next').addEventListener('click', () => { whenCalMonth.setMonth(whenCalMonth.getMonth() + 1); renderWhenCal(); });
+      el.querySelectorAll('.day').forEach(cell => {
+        cell.addEventListener('click', () => {
+          const ds = cell.dataset.date;
+          if (!whenSelFrom || (whenSelFrom && whenSelTo)) { whenSelFrom = ds; whenSelTo = null; }
+          else { whenSelTo = ds; }
+          renderWhenCal();
+        });
+      });
+    }
+    document.getElementById('when-apply').addEventListener('click', () => {
+      if (whenSelFrom) {
+        let a = whenSelFrom, b = whenSelTo || whenSelFrom;
+        if (b < a) [a, b] = [b, a];
+        catalogFilters.dateFrom = a;
+        catalogFilters.dateTo = b;
+      } else {
+        catalogFilters.dateFrom = null;
+        catalogFilters.dateTo = null;
+      }
+      updateWhenLabel();
+      document.querySelector('#facet-when').classList.remove('open');
+      applyCatalogFilters();
+    });
+    document.getElementById('when-clear').addEventListener('click', () => {
+      whenSelFrom = null; whenSelTo = null;
+      catalogFilters.dateFrom = null; catalogFilters.dateTo = null;
+      updateWhenLabel();
+      renderWhenCal();
+    });
+    document.getElementById('facet-when').addEventListener('click', () => renderWhenCal(), { once: false });
+
+    // --- Сортировка: срабатывает сразу при переключении ---
+    catalogSort?.addEventListener('change', () => {
+      catalogFilters.sort = catalogSort.value;
+      applyCatalogFilters();
+    });
+
+    renderTypeList();
+    loadVenues();
 
     async function submitEventFromForm() {
       const fields = document.querySelectorAll('#form .form-grid .field');

@@ -81,7 +81,7 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:4173", "http://localhost:4173"],
+        allow_origins=["http://127.0.0.1:4173", "http://localhost:4173", "http://localhost:8080", "http://127.0.0.1:8080"],
         allow_credentials=True,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
@@ -109,12 +109,17 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
     def list_events(
         search: str | None = Query(default=None, min_length=1),
         category: str | None = None,
+        venue: str | None = None,
         date_from: date | None = None,
         date_to: date | None = None,
         sort: str = "date",
         session: Session = Depends(get_session),
     ) -> dict[str, object]:
         statement = select(Event).where(Event.status == "published")
+
+        # По умолчанию показываем события только с сегодняшнего дня (не прошедшие).
+        if date_from is None:
+            date_from = date.today()
 
         if search:
             pattern = f"%{search}%"
@@ -127,6 +132,8 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
             )
         if category:
             statement = statement.where(Event.category == category)
+        if venue:
+            statement = statement.where(Event.venue == venue)
         if date_from:
             statement = statement.where(Event.date >= date_from)
         if date_to:
@@ -136,6 +143,17 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         events = session.scalars(statement).all()
         items = [serialize_event(event) for event in events]
         return {"items": items, "total": len(items)}
+
+    @app.get("/api/v1/meta/venues")
+    def list_venues(session: Session = Depends(get_session)) -> dict[str, object]:
+        statement = (
+            select(Event.venue)
+            .where(Event.status == "published")
+            .order_by(Event.venue)
+            .distinct()
+        )
+        venues = session.scalars(statement).all()
+        return {"items": venues}
 
     @app.get("/api/v1/events/calendar")
     def calendar_events(
