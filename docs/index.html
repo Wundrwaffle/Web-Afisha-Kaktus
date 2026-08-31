@@ -799,11 +799,26 @@
         const facet = btn.closest('.facet');
         const wasOpen = facet.classList.contains('open');
         document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
-        if (!wasOpen) facet.classList.add('open');
+        if (!wasOpen) {
+          facet.classList.add('open');
+          // При открытии «Когда» отрисовываем календарь периода
+          if (facet.id === 'facet-when') {
+            // стартуем с уже применённого интервала (если есть)
+            whenSelFrom = catalogFilters.dateFrom || null;
+            whenSelTo = catalogFilters.dateTo || null;
+            renderWhenCal();
+          }
+        } else {
+          // Закрытие без «Применить» — сбрасываем черновик выбора к применённому
+          if (facet.id === 'facet-when') {
+            whenSelFrom = catalogFilters.dateFrom || null;
+            whenSelTo = catalogFilters.dateTo || null;
+          }
+        }
         e.stopPropagation();
       });
     });
-    document.addEventListener('click', (e) => {
+    document.addEventListener('mousedown', (e) => {
       if (!e.target.closest('.facet')) document.querySelectorAll('.facet').forEach(f => f.classList.remove('open'));
     });
 
@@ -947,7 +962,6 @@
       updateWhenLabel();
       renderWhenCal();
     });
-    document.getElementById('facet-when').addEventListener('click', () => renderWhenCal(), { once: false });
 
     // --- Сортировка: срабатывает сразу при переключении ---
     catalogSort?.addEventListener('change', () => {
