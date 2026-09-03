@@ -8,7 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .db import Base, build_engine, build_session_factory, session_dependency
-from .models import Event
+from .models import Event, User
 from .auth import build_auth_routes
 
 
@@ -64,6 +64,7 @@ def serialize_event(event: Event) -> dict[str, object]:
         "time": event.time.strftime("%H:%M"),
         "venue": event.venue,
         "price": event.price,
+        "organizer_id": event.organizer_id,
     }
 
 
@@ -100,14 +101,24 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
 
     auth = build_auth_routes(session_factory)
     app.include_router(auth["router"])
+    get_current_user = auth["get_current_user"]
+    require_role = auth["require_role"]
 
     @app.get("/api/v1/health")
     def health_check() -> dict[str, str]:
         return {"status": "ok"}
 
     @app.post("/api/v1/events", status_code=201)
-    def create_event(payload: EventCreate, session: Session = Depends(get_session)) -> dict[str, object]:
-        event = Event(**payload.model_dump(), status="pending_moderation")
+    def create_event(
+        payload: EventCreate,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> dict[str, object]:
+        event = Event(
+            **payload.model_dump(),
+            organizer_id=current_user.id,
+            status="pending_moderation",
+        )
         session.add(event)
         session.commit()
         session.refresh(event)
