@@ -79,6 +79,22 @@ def seed_demo_events(session: Session) -> None:
 def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
     engine = build_engine(database_url)
     Base.metadata.create_all(engine)
+
+    # Лёгкая прототипная миграция: колонки, добавленные позже, которых нет в старых
+    # sqlite-файлах. create_all не умеет ALTER существующие таблицы, поэтому добиваем
+    # недостающие колонки вручную (идемпотентно — при наличии ничего не делаем).
+    if database_url.startswith("sqlite"):
+        from sqlalchemy import text as _text
+        from sqlalchemy import inspect as _inspect
+        _insp = _inspect(engine)
+        if "events" in _insp.get_table_names():
+            _cols = {c["name"] for c in _insp.get_columns("events")}
+            if "organizer_id" not in _cols:
+                with engine.begin() as _conn:
+                    _conn.execute(_text(
+                        "ALTER TABLE events ADD COLUMN organizer_id INTEGER REFERENCES users(id)"
+                    ))
+
     session_factory = build_session_factory(engine)
 
     app = FastAPI(
@@ -87,7 +103,8 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:4173", "http://localhost:4173", "http://localhost:8080", "http://127.0.0.1:8080"],
+        allow_origins=["http://127.0.0.1:4173", "http://localhost:4173", "http://localhost:8080", "http://127.0.0.1:8080", "null"],
+        allow_origin_regex=r"https?://(127\.0\.0\.1|localhost|192\.168\.\d+\.\d+)(:\d+)?$",
         allow_credentials=True,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
