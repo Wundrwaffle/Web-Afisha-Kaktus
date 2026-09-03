@@ -1,6 +1,8 @@
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 
-from app.main import create_app
+from app.main import DEMO_EVENTS, create_app
 
 
 def test_health_check_returns_ok(tmp_path):
@@ -57,13 +59,14 @@ def test_event_detail_returns_404_for_unknown_slug(tmp_path):
 
 def test_events_support_search_category_and_date_filters(tmp_path):
     app = create_app(f"sqlite:///{tmp_path / 'filters.sqlite3'}")
+    bolshoy_date = DEMO_EVENTS[1]["date"].isoformat()
 
     with TestClient(app) as client:
         search_response = client.get("/api/v1/events", params={"search": "экран"})
         category_response = client.get("/api/v1/events", params={"category": "Музыка"})
         date_response = client.get(
             "/api/v1/events",
-            params={"date_from": "2026-06-23", "date_to": "2026-06-23"},
+            params={"date_from": bolshoy_date, "date_to": bolshoy_date},
         )
 
     assert search_response.json()["total"] == 1
@@ -71,7 +74,7 @@ def test_events_support_search_category_and_date_filters(tmp_path):
     assert category_response.json()["total"] == 1
     assert category_response.json()["items"][0]["category"] == "Музыка"
     assert date_response.json()["total"] == 1
-    assert date_response.json()["items"][0]["date"] == "2026-06-23"
+    assert date_response.json()["items"][0]["date"] == bolshoy_date
 
 
 def test_api_allows_frontend_origin(tmp_path):
@@ -98,11 +101,12 @@ def test_events_support_title_sorting(tmp_path):
 
 def test_calendar_returns_events_inside_date_range(tmp_path):
     app = create_app(f"sqlite:///{tmp_path / 'calendar.sqlite3'}")
+    bolshoy_date = DEMO_EVENTS[1]["date"].isoformat()
 
     with TestClient(app) as client:
         response = client.get(
             "/api/v1/events/calendar",
-            params={"start_date": "2026-06-23", "end_date": "2026-06-23"},
+            params={"start_date": bolshoy_date, "end_date": bolshoy_date},
         )
 
     assert response.status_code == 200
@@ -112,11 +116,12 @@ def test_calendar_returns_events_inside_date_range(tmp_path):
 
 def test_create_event_starts_in_pending_moderation(tmp_path):
     app = create_app(f"sqlite:///{tmp_path / 'create.sqlite3'}")
+    future_date = (date.today() + timedelta(days=3)).isoformat()
     payload = {
         "title": "Новая выставка",
         "slug": "novaya-vystavka",
         "category": "Культура",
-        "date": "2026-06-25",
+        "date": future_date,
         "time": "19:00",
         "venue": "Арт-пространство",
         "price": "Бесплатно",

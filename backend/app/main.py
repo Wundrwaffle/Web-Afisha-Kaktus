@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -9,10 +9,15 @@ from sqlalchemy.orm import Session
 
 from .db import Base, build_engine, build_session_factory, session_dependency
 from .models import Event
+from .auth import build_auth_routes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATABASE_URL = f"sqlite:///{PROJECT_ROOT / 'afisha.sqlite3'}"
+
+# Демо-события датируются ОТНОСИТЕЛЬНО сегодняшнего дня (в будущем), иначе со
+# временем они «устаревают» и публичный каталог (date_from = today) их не отдаёт.
+_TODAY = date.today()
 
 DEMO_EVENTS = [
     {
@@ -20,7 +25,7 @@ DEMO_EVENTS = [
         "slug": "gorod-zvuchit",
         "status": "published",
         "category": "Музыка",
-        "date": date(2026, 6, 22),
+        "date": _TODAY + timedelta(days=1),
         "time": time(18, 0),
         "venue": "Парк Гагарина",
         "price": "Бесплатно",
@@ -30,7 +35,7 @@ DEMO_EVENTS = [
         "slug": "bolshoy-ekran",
         "status": "published",
         "category": "Кино",
-        "date": date(2026, 6, 23),
+        "date": _TODAY + timedelta(days=2),
         "time": time(21, 30),
         "venue": "Площадь Побед",
         "price": "от 350 ₽",
@@ -92,6 +97,9 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
 
     with session_factory() as session:
         seed_demo_events(session)
+
+    auth = build_auth_routes(session_factory)
+    app.include_router(auth["router"])
 
     @app.get("/api/v1/health")
     def health_check() -> dict[str, str]:
