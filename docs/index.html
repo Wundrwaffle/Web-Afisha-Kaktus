@@ -209,6 +209,20 @@
     .nav-tab.active, .nav-tab:hover { background: var(--soft-blue); color: var(--accent-dark); }
     .toast { position: fixed; bottom: 20px; right: 20px; padding: 13px 17px; background: var(--ink); color: #fff; border-radius: 10px; box-shadow: var(--shadow); opacity: 0; transform: translateY(10px); pointer-events: none; transition: .25s; font-size: 13px; z-index: 20; }
     .toast.show { opacity: 1; transform: translateY(0); }
+    /* --- Экран входа/регистрации --- */
+    .auth-layout { display: grid; grid-template-columns: 1fr; max-width: 440px; margin: 0 auto; }
+    .auth-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 30px; box-shadow: var(--shadow); }
+    .auth-tabs { display: flex; gap: 6px; background: #eef1f5; border-radius: 12px; padding: 5px; margin-bottom: 24px; }
+    .auth-tab { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 11px; font-weight: 800; font-size: 14px; color: var(--muted); transition: .15s; }
+    .auth-tab.active { background: #fff; color: var(--ink); box-shadow: 0 2px 6px rgba(11,26,51,.08); }
+    .auth-card .field { margin-bottom: 16px; }
+    .auth-card h2 { font-size: 24px; margin-bottom: 6px; }
+    .auth-card .auth-sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; line-height: 1.5; }
+    .auth-error { display: none; background: #fff1f0; color: #b53c37; border: 1px solid #f3c1bd; border-radius: 10px; padding: 11px 13px; font-size: 13px; margin-bottom: 16px; }
+    .auth-error.show { display: block; }
+    .user-chip { display: inline-flex; align-items: center; gap: 9px; border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 6px 8px 6px 14px; font-weight: 700; font-size: 13px; }
+    .user-chip .role { color: var(--accent-dark); background: var(--soft-blue); border-radius: 99px; padding: 3px 9px; font-size: 11px; font-weight: 800; text-transform: capitalize; }
+    .auth-card .primary-btn { width: 100%; margin-top: 6px; }
     @media (max-width: 900px) {
       .topbar { height: auto; padding: 14px 0; flex-wrap: wrap; gap: 12px; }
       .brand { min-width: 0; flex: 1; }
@@ -244,7 +258,7 @@
         <i class="brand-mark"></i><span>что у нас<br>там завтра<small>городская афиша</small></span>
       </a>
       <div class="top-search"><span class="search-icon">⌕</span><input placeholder="Найти событие, место или организатора" onkeydown="if(event.key==='Enter') searchFromTop(event)"></div>
-      <div class="nav-actions"><button class="link-btn" onclick="showScreen('calendar')">Календарь</button><button class="primary-btn" onclick="showScreen('form')">Добавить событие</button><button class="ghost-btn" onclick="promptApiBase()" title="Настроить адрес API">⚙ API</button></div>
+      <div class="nav-actions"><button class="link-btn" onclick="showScreen('calendar')">Календарь</button><span id="nav-user"></span><button class="primary-btn" id="add-event-btn" onclick="handleAddEventClick()">Добавить событие</button><button class="ghost-btn" onclick="promptApiBase()" title="Настроить адрес API">⚙ API</button></div>
     </div>
   </header>
 
@@ -314,8 +328,10 @@
     <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1>Добавить событие</h1><p>После отправки событие попадёт на проверку модератору.</p></div><span class="status pending">Черновик</span></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input value="Город звучит"></div><div class="field"><label>Категория *</label><select><option>Музыка</option><option>Культура</option><option>Спорт</option></select></div><div class="field"><label>Возрастное ограничение</label><select><option>18+</option><option>12+</option><option>6+</option><option>Без ограничений</option></select></div><div class="field"><label>Дата *</label><input type="date" value="2026-06-22"></div><div class="field"><label>Время начала *</label><input type="time" value="18:00"></div><div class="field"><label>Место *</label><input value="Парк Гагарина"></div><div class="field"><label>Район</label><select><option>Центральный</option><option>Кузнецкий</option></select></div><div class="field full"><label>Адрес *</label><input value="Новокузнецк, парк Гагарина"></div><div class="field full"><label>Описание *</label><textarea>Большой летний фестиваль музыки, локальных проектов и городских историй.</textarea></div><div class="field"><label>Стоимость</label><select><option>Бесплатно</option><option>Платное</option></select></div><div class="field"><label>Ссылка на подробности</label><input placeholder="https://..."></div></div><div class="form-actions"><button class="ghost-btn" onclick="toast('Черновик сохранён')">Сохранить черновик</button><button class="primary-btn" onclick="submitEventFromForm()">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Проверьте дату и время</span></div><div class="check"><i>✓</i><span>Укажите точный адрес</span></div><div class="check"><i>✓</i><span>Добавьте понятное описание</span></div><div class="check"><i>✓</i><span>Не используйте рекламные обещания</span></div></div></aside></div></div></section>
 
     <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Очередь модерации</h1><p>Проверяйте новые события перед публикацией.</p></div><span class="status pending">7 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px"><button class="chip active">На проверке · 7</button><button class="chip">Отклонённые</button></div><div class="queue"><button class="queue-item active"><strong>Город звучит</strong><span>Музыка · сегодня, 14:22</span></button><button class="queue-item"><strong>Ночной open air</strong><span>Музыка · сегодня, 13:51</span></button><button class="queue-item"><strong>Своё место</strong><span>Маркет · сегодня, 12:03</span></button></div></div><div class="moderation-main"><div class="moderation-header"><div><h2>Город звучит</h2><p>Создано организатором «Команда Город звучит»</p></div><span class="status pending">На проверке</span></div><div class="review-grid"><div class="review-thumb"></div><div class="review-list"><div class="review-line"><b>Категория</b><span>Музыка</span></div><div class="review-line"><b>Дата</b><span>22 июня 2026 · 18:00</span></div><div class="review-line"><b>Место</b><span>Парк Гагарина, Новокузнецк</span></div><div class="review-line"><b>Стоимость</b><span>Бесплатно</span></div><div class="review-line"><b>Описание</b><span>Большой летний фестиваль музыки, локальных проектов и городских историй.</span></div></div></div><div class="moderation-actions"><button class="danger-btn" onclick="toast('Событие отклонено, причина отправлена организатору')">Отклонить</button><button class="primary-btn" onclick="toast('Событие опубликовано')">Одобрить и опубликовать</button></div></div></div></div></section>
+
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div></div></section>
   </main>
-  <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button></nav>
+  <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <div class="toast" id="toast"></div>
   <script>
     // API base URL: можно переопределить через ?api=... или localStorage
@@ -985,18 +1001,182 @@
         price: value(9),
       };
       try {
+        const headers = {'Content-Type': 'application/json'};
+        const access = getAccessToken();
+        if (access) headers['Authorization'] = `Bearer ${access}`;
         const response = await fetch(`${API_BASE}/events`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers,
           body: JSON.stringify(payload),
         });
         const data = await response.json();
+        if (response.status === 401) { toast('Нужно войти, чтобы добавлять события'); showScreen('auth'); return; }
+        if (response.status === 403) { toast('Недостаточно прав: требуется роль организатора или админа'); return; }
         if (!response.ok) throw new Error(data.detail || 'Не удалось отправить событие');
         toast(`Событие отправлено на модерацию: ${data.title}`);
       } catch (error) {
         toast(error.message);
       }
     }
+
+    // === Авторизация: вход / регистрация / выход ===
+    const TOKEN_KEY = 'afisha_access_token';
+    const USER_KEY = 'afisha_user';
+
+    function getAccessToken() { return localStorage.getItem(TOKEN_KEY); }
+    function getStoredUser() {
+      try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }
+      catch { return null; }
+    }
+    function setSession(token, refresh, user) {
+      localStorage.setItem(TOKEN_KEY, token);
+      if (refresh) localStorage.setItem('afisha_refresh_token', refresh);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      renderAuthState();
+    }
+    function clearSession() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem('afisha_refresh_token');
+      localStorage.removeItem(USER_KEY);
+      renderAuthState();
+    }
+    function currentRole() { return (getStoredUser() || {}).role; }
+
+    function isAllowedToCreate() {
+      const role = currentRole();
+      return role === 'organizer' || role === 'admin';
+    }
+
+    function renderAuthState() {
+      const user = getStoredUser();
+      const navUser = document.getElementById('nav-user');
+      if (navUser) {
+        if (user) {
+          navUser.innerHTML = `<button class="user-chip" onclick="handleLogout()" title="Выйти">${escapeHtml(user.full_name || user.email)}<span class="role">${escapeHtml(user.role)}</span><span style="color:var(--muted)">✕</span></button>`;
+        } else {
+          navUser.innerHTML = `<button class="ghost-btn" onclick="showScreen('auth')">Войти</button>`;
+        }
+      }
+    }
+
+    function handleAddEventClick() {
+      if (!getAccessToken()) { showScreen('auth'); return; }
+      if (!isAllowedToCreate()) {
+        toast(`Ваша роль — «${currentRole() || 'посетитель'}». Добавлять события могут организаторы и админы.`);
+        return;
+      }
+      showScreen('form');
+    }
+
+    function switchAuthMode(mode) {
+      const isRegister = mode === 'register';
+      document.getElementById('auth-tab-login').classList.toggle('active', !isRegister);
+      document.getElementById('auth-tab-register').classList.toggle('active', isRegister);
+      document.getElementById('auth-title').textContent = isRegister ? 'Регистрация' : 'Вход';
+      document.getElementById('auth-sub').textContent = isRegister
+        ? 'Создайте аккаунт, чтобы позже получить роль организатора.'
+        : 'Введите почту и пароль, чтобы войти в кабинет организатора.';
+      document.getElementById('auth-name-field').style.display = isRegister ? 'grid' : 'none';
+      document.getElementById('auth-name').required = isRegister;
+      document.getElementById('auth-submit').textContent = isRegister ? 'Создать аккаунт' : 'Войти';
+      document.getElementById('auth-error').classList.remove('show');
+      document.getElementById('auth-password').setAttribute('autocomplete', isRegister ? 'new-password' : 'current-password');
+    }
+
+    document.getElementById('auth-tab-login').addEventListener('click', () => switchAuthMode('login'));
+    document.getElementById('auth-tab-register').addEventListener('click', () => switchAuthMode('register'));
+
+    function showAuthError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+      const isRegister = document.getElementById('auth-tab-register').classList.contains('active');
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const fullName = document.getElementById('auth-name').value.trim();
+      document.getElementById('auth-error').classList.remove('show');
+
+      if (isRegister && password.length < 8) {
+        showAuthError('Пароль должен быть не короче 8 символов.');
+        return;
+      }
+
+      try {
+        if (isRegister) {
+          const resp = await fetch(`${API_BASE}/auth/register`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email, password, full_name: fullName}),
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.detail || 'Не удалось зарегистрироваться');
+          toast('Аккаунт создан. Теперь войдите.');
+          // Переключаемся на вход, подставляя email
+          document.getElementById('auth-email').value = email;
+          switchAuthMode('login');
+          return;
+        }
+
+        const resp = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Неверный email или пароль');
+
+        setSession(data.access_token, data.refresh_token, null);
+        // Подтягиваем профиль пользователя (id, роль)
+        const meResp = await fetch(`${API_BASE}/auth/me`, {
+          headers: {'Authorization': `Bearer ${data.access_token}`},
+        });
+        if (!meResp.ok) throw new Error('Не удалось загрузить профиль');
+        const me = await meResp.json();
+        setSession(data.access_token, data.refresh_token, me);
+        toast(`Добро пожаловать, ${me.full_name || me.email}!`);
+        showScreen('home');
+      } catch (error) {
+        showAuthError(error.message);
+      }
+    }
+
+    async function handleLogout() {
+      const refresh = localStorage.getItem('afisha_refresh_token');
+      const access = getAccessToken();
+      try {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', ...(access ? {'Authorization': `Bearer ${access}`} : {})},
+          body: JSON.stringify({refresh_token: refresh}),
+        });
+      } catch (e) { /* сетевой сбой — всё равно чистим локально */ }
+      clearSession();
+      toast('Вы вышли из кабинета');
+    }
+
+    // При загрузке: восстанавливаем сессию и их профиль, если токен жив
+    async function restoreSession() {
+      const access = getAccessToken();
+      if (!access) { renderAuthState(); return; }
+      try {
+        const resp = await fetch(`${API_BASE}/auth/me`, {
+          headers: {'Authorization': `Bearer ${access}`},
+        });
+        if (resp.ok) {
+          setSession(access, localStorage.getItem('afisha_refresh_token'), await resp.json());
+        } else {
+          clearSession();
+        }
+      } catch (e) {
+        // Сеть недоступна — оставляем сохранённого пользователя.
+        renderAuthState();
+      }
+    }
+    restoreSession();
 
     function toast(message) {
       const el = document.getElementById('toast');
