@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .db import Base, build_engine, build_session_factory, session_dependency
@@ -159,12 +159,15 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
             date_from = date.today()
 
         if search:
-            pattern = f"%{search}%"
+            # SQLite ilike не «сворачивает» регистр для кириллицы (только ASCII),
+            # поэтому поиск по заглавной/строчной кириллице не находил нижний/верхний
+            # регистр. Нормализуем обе стороны через lower().
+            pattern = f"%{search.lower()}%"
             statement = statement.where(
                 or_(
-                    Event.title.ilike(pattern),
-                    Event.category.ilike(pattern),
-                    Event.venue.ilike(pattern),
+                    func.lower(Event.title).like(pattern),
+                    func.lower(Event.category).like(pattern),
+                    func.lower(Event.venue).like(pattern),
                 )
             )
         if category:
@@ -176,7 +179,9 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         if date_to:
             statement = statement.where(Event.date <= date_to)
 
-        statement = statement.order_by(Event.title if sort == "title" else Event.date, Event.time)
+        statement = statement.order_by(
+            func.lower(Event.title) if sort == "title" else Event.date, Event.time
+        )
         events = session.scalars(statement).all()
         items = [serialize_event(event) for event in events]
         return {"items": items, "total": len(items)}
