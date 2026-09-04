@@ -453,7 +453,7 @@
         }
         if (target === 'catalog' || target === 'both') {
           const catalogTitle = document.querySelector('#catalog .section-head h2');
-          if (catalogTitle) catalogTitle.textContent = `${data.total} событий`;
+          if (catalogTitle) catalogTitle.textContent = pluralEvents(data.total);
         }
       } catch (error) {
         toast(error.message);
@@ -566,12 +566,6 @@
     let ribbonEventsByDate = {};
     let rangeStart = null;   // первый клик — дата начала
     let appliedRange = null; // применённый интервал {from, to} для подсветки
-
-    function pluralEvents(n) {
-      if (n % 10 === 1 && n % 100 !== 11) return `${n} событие`;
-      if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return `${n} события`;
-      return `${n} событий`;
-    }
 
     function renderDateRibbon(events) {
       // Группируем события по датам
