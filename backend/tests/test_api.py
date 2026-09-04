@@ -99,6 +99,31 @@ def test_events_support_title_sorting(tmp_path):
     assert titles == ["Большой экран", "Город звучит"]
 
 
+def test_search_is_case_insensitive_for_cyrillic(tmp_path):
+    app = create_app(f"sqlite:///{tmp_path / 'cyr.sqlite3'}")
+
+    with TestClient(app) as client:
+        upper = client.get("/api/v1/events", params={"search": "ЭКРАН"})
+        lower = client.get("/api/v1/events", params={"search": "экран"})
+
+    # SQLite без ICU не сворачивает регистр кириллицы; наш кастомный lower()
+    # должен находить «Большой экран» в обоих регистрах.
+    assert upper.json()["total"] == 1
+    assert upper.json()["items"][0]["slug"] == "bolshoy-ekran"
+    assert lower.json()["total"] == 1
+    assert lower.json()["items"][0]["slug"] == "bolshoy-ekran"
+
+
+def test_title_sort_orders_cyrillic_case_insensitively(tmp_path):
+    app = create_app(f"sqlite:///{tmp_path / 'sort_cyr.sqlite3'}")
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/events", params={"sort": "title"})
+
+    titles = [event["title"] for event in response.json()["items"]]
+    assert titles == ["Большой экран", "Город звучит"]
+
+
 def test_calendar_returns_events_inside_date_range(tmp_path):
     app = create_app(f"sqlite:///{tmp_path / 'calendar.sqlite3'}")
     bolshoy_date = DEMO_EVENTS[1]["date"].isoformat()
