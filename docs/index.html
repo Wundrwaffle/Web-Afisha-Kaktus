@@ -193,6 +193,7 @@
     .status { display: inline-flex; border-radius: 99px; padding: 5px 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
     .status.pending { color: var(--amber); background: #fff5d9; }
     .status.published { color: var(--green); background: #e4f8ef; }
+    .status.rejected { color: #b53c37; background: #fdebea; }
     .moderation-main { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
     .moderation-header { display: flex; justify-content: space-between; align-items: start; gap: 18px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
     .moderation-header h2 { font-size: 25px; margin-bottom: 8px; }
@@ -223,6 +224,15 @@
     .user-chip { display: inline-flex; align-items: center; gap: 9px; border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 6px 8px 6px 14px; font-weight: 700; font-size: 13px; }
     .user-chip .role { color: var(--accent-dark); background: var(--soft-blue); border-radius: 99px; padding: 3px 9px; font-size: 11px; font-weight: 800; text-transform: capitalize; }
     .auth-card .primary-btn { width: 100%; margin-top: 6px; }
+    .cabinet-head { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .cabinet-head h2 { font-size: 22px; margin: 0 0 5px; }
+    .cabinet-head p { color: var(--muted); font-size: 13px; margin: 0; }
+    .my-events-list { display: grid; gap: 12px; }
+    .my-event { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+    .my-event .me-title { font-weight: 800; font-size: 15px; }
+    .my-event .me-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .my-event .status { flex-shrink: 0; }
+    .my-events-empty { background: #fff; border: 1px dashed var(--line); border-radius: var(--radius); padding: 40px; text-align: center; color: var(--muted); }
     @media (max-width: 900px) {
       .topbar { height: auto; padding: 14px 0; flex-wrap: wrap; gap: 12px; }
       .brand { min-width: 0; flex: 1; }
@@ -327,9 +337,9 @@
 
     <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1>Добавить событие</h1><p>После отправки событие попадёт на проверку модератору.</p></div><span class="status pending">Черновик</span></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input value="Город звучит"></div><div class="field"><label>Категория *</label><select><option>Музыка</option><option>Культура</option><option>Спорт</option></select></div><div class="field"><label>Возрастное ограничение</label><select><option>18+</option><option>12+</option><option>6+</option><option>Без ограничений</option></select></div><div class="field"><label>Дата *</label><input type="date" value="2026-06-22"></div><div class="field"><label>Время начала *</label><input type="time" value="18:00"></div><div class="field"><label>Место *</label><input value="Парк Гагарина"></div><div class="field"><label>Район</label><select><option>Центральный</option><option>Кузнецкий</option></select></div><div class="field full"><label>Адрес *</label><input value="Новокузнецк, парк Гагарина"></div><div class="field full"><label>Описание *</label><textarea>Большой летний фестиваль музыки, локальных проектов и городских историй.</textarea></div><div class="field"><label>Стоимость</label><select><option>Бесплатно</option><option>Платное</option></select></div><div class="field"><label>Ссылка на подробности</label><input placeholder="https://..."></div></div><div class="form-actions"><button class="ghost-btn" onclick="toast('Черновик сохранён')">Сохранить черновик</button><button class="primary-btn" onclick="submitEventFromForm()">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Проверьте дату и время</span></div><div class="check"><i>✓</i><span>Укажите точный адрес</span></div><div class="check"><i>✓</i><span>Добавьте понятное описание</span></div><div class="check"><i>✓</i><span>Не используйте рекламные обещания</span></div></div></aside></div></div></section>
 
-    <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Очередь модерации</h1><p>Проверяйте новые события перед публикацией.</p></div><span class="status pending">7 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px"><button class="chip active">На проверке · 7</button><button class="chip">Отклонённые</button></div><div class="queue"><button class="queue-item active"><strong>Город звучит</strong><span>Музыка · сегодня, 14:22</span></button><button class="queue-item"><strong>Ночной open air</strong><span>Музыка · сегодня, 13:51</span></button><button class="queue-item"><strong>Своё место</strong><span>Маркет · сегодня, 12:03</span></button></div></div><div class="moderation-main"><div class="moderation-header"><div><h2>Город звучит</h2><p>Создано организатором «Команда Город звучит»</p></div><span class="status pending">На проверке</span></div><div class="review-grid"><div class="review-thumb"></div><div class="review-list"><div class="review-line"><b>Категория</b><span>Музыка</span></div><div class="review-line"><b>Дата</b><span>22 июня 2026 · 18:00</span></div><div class="review-line"><b>Место</b><span>Парк Гагарина, Новокузнецк</span></div><div class="review-line"><b>Стоимость</b><span>Бесплатно</span></div><div class="review-line"><b>Описание</b><span>Большой летний фестиваль музыки, локальных проектов и городских историй.</span></div></div></div><div class="moderation-actions"><button class="danger-btn" onclick="toast('Событие отклонено, причина отправлена организатору')">Отклонить</button><button class="primary-btn" onclick="toast('Событие опубликовано')">Одобрить и опубликовать</button></div></div></div></div></section>
+    <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Очередь модерации</h1><p>Проверяйте новые события перед публикацией.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px"><button class="chip active">На проверке</button><button class="chip">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div></div></section>
 
-    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div></div></section>
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><button class="primary-btn" onclick="handleAddEventClick()">+ Добавить событие</button></div><div id="my-events-list" class="my-events-list"></div></div></div></section>
   </main>
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <div class="toast" id="toast"></div>
@@ -379,6 +389,8 @@
       if (name === 'home') loadEvents({});
       if (name === 'catalog') applyCatalogFilters();
       if (name === 'calendar') loadCalendar();
+      if (name === 'auth') renderCabinet();
+      if (name === 'moderation') loadModerationQueue();
     }
 
     tabs.forEach(t => t.addEventListener('click', () => showScreen(t.dataset.screen)));
@@ -1066,6 +1078,110 @@
         return;
       }
       showScreen('form');
+    }
+
+    // === Кабинет организатора ===
+    function statusClass(status) {
+      return ({pending_moderation: 'pending', published: 'published', rejected: 'rejected'})[status] || '';
+    }
+    function statusLabel(status) {
+      return ({pending_moderation: 'На проверке', published: 'Опубликовано', rejected: 'Отклонено'})[status] || status;
+    }
+    function renderCabinet() {
+      const user = getStoredUser();
+      const layout = document.getElementById('auth-layout');
+      const cabinet = document.getElementById('cabinet');
+      if (!user) { layout.style.display = ''; cabinet.style.display = 'none'; return; }
+      layout.style.display = 'none';
+      cabinet.style.display = '';
+      document.getElementById('cabinet-title').textContent = 'Мои события';
+      document.getElementById('cabinet-sub').textContent = `${user.full_name || user.email} · роль ${user.role}`;
+      loadMyEvents();
+    }
+    async function loadMyEvents() {
+      const token = getAccessToken();
+      if (!token) return;
+      const list = document.getElementById('my-events-list');
+      try {
+        const resp = await fetch(`${API_BASE}/me/events`, { headers: {Authorization: `Bearer ${token}`} });
+        if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить события');
+        if (!data.items.length) { list.innerHTML = '<div class="my-events-empty">Пока нет событий…</div>'; return; }
+        list.innerHTML = data.items.map(e => `
+    <div class="my-event">
+      <div><div class="me-title">${escapeHtml(e.title)}</div>
+        <div class="me-meta">${escapeHtml(e.category)} · ${formatDate(e.date)} ${e.time}</div></div>
+      <span class="status ${statusClass(e.status)}">${statusLabel(e.status)}</span>
+    </div>`).join('');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    // === Модерация ===
+    let moderationEvents = [];
+    let selectedModId = null;
+    async function loadModerationQueue() {
+      const token = getAccessToken();
+      if (!token) { toast('Войдите как модератор или админ, чтобы просматривать очередь'); return; }
+      try {
+        const resp = await fetch(`${API_BASE}/moderation/queue`, { headers: {Authorization: `Bearer ${token}`} });
+        if (resp.status === 403) { toast('Недостаточно прав: нужна роль модератора или админа'); return; }
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить очередь');
+        moderationEvents = data.items;
+        if (selectedModId && !moderationEvents.some(e => e.event_id === selectedModId)) selectedModId = null;
+        renderModQueue();
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+    function renderModQueue() {
+      const list = document.getElementById('mod-queue-list');
+      const counter = document.getElementById('mod-counter');
+      const detail = document.getElementById('mod-detail');
+      if (counter) counter.textContent = `${moderationEvents.length} на проверке`;
+      if (!moderationEvents.length) {
+        list.innerHTML = '<div class="my-events-empty">Очередь пуста — все события проверены.</div>';
+        if (detail) detail.innerHTML = '';
+        return;
+      }
+      if (selectedModId == null) selectedModId = moderationEvents[0].event_id;
+      list.innerHTML = moderationEvents.map(e => `
+    <button class="queue-item${e.event_id === selectedModId ? ' active' : ''}" data-id="${e.event_id}">
+      <strong>${escapeHtml(e.title)}</strong><span>${escapeHtml(e.category)} · ${formatDate(e.date)} ${e.time}</span>
+    </button>`).join('');
+      list.querySelectorAll('.queue-item').forEach(btn => {
+        btn.addEventListener('click', () => { selectedModId = Number(btn.dataset.id); renderModQueue(); });
+      });
+      const ev = moderationEvents.find(e => e.event_id === selectedModId);
+      if (ev && detail) {
+        detail.innerHTML = `
+    <div class="moderation-header"><div><h2>${escapeHtml(ev.title)}</h2><p>Создано организатором</p></div><span class="status pending">На проверке</span></div>
+    <div class="review-grid"><div class="review-thumb"></div><div class="review-list">
+      <div class="review-line"><b>Категория</b><span>${escapeHtml(ev.category)}</span></div>
+      <div class="review-line"><b>Дата</b><span>${formatLongDate(ev.date)} · ${ev.time}</span></div>
+      <div class="review-line"><b>Место</b><span>${escapeHtml(ev.venue)}</span></div>
+      <div class="review-line"><b>Стоимость</b><span>${escapeHtml(ev.price)}</span></div>
+    </div></div>
+    <div class="moderation-actions"><button class="danger-btn" onclick="reviewModEvent(${ev.event_id}, 'reject')">Отклонить</button><button class="primary-btn" onclick="reviewModEvent(${ev.event_id}, 'approve')">Одобрить и опубликовать</button></div>`;
+      }
+    }
+    async function reviewModEvent(id, decision) {
+      try {
+        const resp = await fetch(`${API_BASE}/moderation/events/${id}/review`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${getAccessToken()}`},
+          body: JSON.stringify({decision}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось обработать событие');
+        toast(decision === 'approve' ? 'Событие опубликовано' : 'Событие отклонено');
+        await loadModerationQueue();
+      } catch (error) {
+        toast(error.message);
+      }
     }
 
     function switchAuthMode(mode) {
