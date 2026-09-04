@@ -56,6 +56,7 @@ class EventCreate(BaseModel):
 def serialize_event(event: Event) -> dict[str, object]:
     return {
         "id": f"event-{event.id}",
+        "event_id": event.id,
         "title": event.title,
         "slug": event.slug,
         "status": event.status,
@@ -219,6 +220,56 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         event = session.scalar(statement)
         if event is None:
             raise HTTPException(status_code=404, detail="Event not found")
+        return serialize_event(event)
+
+    # --- Кабинет организатора ---
+    @app.get("/api/v1/me/events")
+    def my_events(
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> dict[str, object]:
+        statement = (
+            select(Event)
+            .where(Event.organizer_id == current_user.id)
+            .order_by(Event.date.desc(), Event.time)
+        )
+        events = session.scalars(statement).all()
+        items = [serialize_event(event) for event in events]
+        return {"items": items, "total": len(items)}
+
+    # --- Модерация ---
+    class ReviewRequest(BaseModel):
+        decision: str = Field(pattern=r"^(approve|reject)$")
+
+    @app.get("/api/v1/moderation/queue")
+    def moderation_queue(
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> dict[str, object]:
+        statement = (
+            select(Event)
+            .where(Event.status == "pending_moderation")
+            .order_by(Event.date, Event.time)
+        )
+        events = session.scalars(statement).all()
+        items = [serialize_event(event) for event in events]
+        return {"items": items, "total": len(items)}
+
+    @app.post("/api/v1/moderation/events/{event_id}/review")
+    def review_event(
+        event_id: int,
+        payload: ReviewRequest,
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> dict[str, object]:
+        event = session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+        if event.status != "pending_moderation":
+            raise HTTPException(status_code=409, detail="Event is not pending moderation")
+        event.status = "published" if payload.decision == "approve" else "rejected"
+        session.commit()
+        session.refresh(event)
         return serialize_event(event)
 
     return app
