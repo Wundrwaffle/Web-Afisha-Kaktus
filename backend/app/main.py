@@ -1,5 +1,6 @@
 from datetime import date, time, timedelta
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -107,7 +108,7 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         allow_origins=["http://127.0.0.1:4173", "http://localhost:4173", "http://localhost:8080", "http://127.0.0.1:8080", "null"],
         allow_origin_regex=r"https?://(127\.0\.0\.1|localhost|192\.168\.\d+\.\d+)(:\d+)?$",
         allow_credentials=True,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["*"],
     )
 
@@ -241,6 +242,50 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         events = session.scalars(statement).all()
         items = [serialize_event(event) for event in events]
         return {"items": items, "total": len(items)}
+
+    class EventUpdate(BaseModel):
+        title: str | None = Field(default=None, min_length=3, max_length=160)
+        slug: str | None = Field(default=None, min_length=3, max_length=180, pattern=r"^[a-z0-9-]+$")
+        category: str | None = Field(default=None, min_length=2, max_length=80)
+        date: Optional[date] = None
+        time: Optional[time] = None
+        venue: str | None = Field(default=None, min_length=2, max_length=180)
+        price: str | None = Field(default=None, min_length=1, max_length=80)
+
+    def _get_own_event(session: Session, event_id: int, current_user: User) -> Event:
+        event = session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+        if event.organizer_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Event not found")
+        return event
+
+    @app.patch("/api/v1/me/events/{event_id}")
+    def update_event(
+        event_id: int,
+        payload: EventUpdate,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> dict[str, object]:
+        event = _get_own_event(session, event_id, current_user)
+        changes = payload.model_dump(exclude_unset=True)
+        if not changes:
+            return serialize_event(event)
+        for field, value in changes.items():
+            setattr(event, field, value)
+        session.commit()
+        session.refresh(event)
+        return serialize_event(event)
+
+    @app.delete("/api/v1/me/events/{event_id}", status_code=204)
+    def delete_event(
+        event_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> None:
+        event = _get_own_event(session, event_id, current_user)
+        session.delete(event)
+        session.commit()
 
     # --- Модерация ---
     class ReviewRequest(BaseModel):

@@ -102,6 +102,90 @@ def test_visitor_my_events_is_forbidden(tmp_path):
     assert me.status_code == 403
 
 
+def test_organizer_updates_own_event(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_update.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client)
+        _set_role(db_url, "organizer@example.com", "organizer")
+        tok = _login(client)["access_token"]
+        created = _create_as_organizer(client, tok, slug="to-update")
+        event_id = created.json()["event_id"]
+
+        patched = client.patch(
+            f"/api/v1/me/events/{event_id}",
+            json={"title": "Обновлённое название", "price": "500 ₽"},
+            headers=_auth(tok),
+        )
+    assert patched.status_code == 200
+    body = patched.json()
+    assert body["title"] == "Обновлённое название"
+    assert body["price"] == "500 ₽"
+    # Незатронутые поля сохранились.
+    assert body["slug"] == "to-update"
+    assert body["status"] == "pending_moderation"
+
+
+def test_organizer_cannot_update_others_event(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_update_other.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "a@example.com")
+        _set_role(db_url, "a@example.com", "organizer")
+        tok_a = _login(client, "a@example.com")["access_token"]
+        created = _create_as_organizer(client, tok_a, slug="owned-by-a")
+
+        _register(client, "b@example.com")
+        _set_role(db_url, "b@example.com", "organizer")
+        tok_b = _login(client, "b@example.com")["access_token"]
+
+        patched = client.patch(
+            f"/api/v1/me/events/{created.json()['event_id']}",
+            json={"title": "Чужое"},
+            headers=_auth(tok_b),
+        )
+    # Чужое событие не видно и не редактируется — 404, а не 403 (не раскрываем существование).
+    assert patched.status_code == 404
+
+
+def test_organizer_deletes_own_event(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_delete.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client)
+        _set_role(db_url, "organizer@example.com", "organizer")
+        tok = _login(client)["access_token"]
+        created = _create_as_organizer(client, tok, slug="to-delete")
+        event_id = created.json()["event_id"]
+
+        deleted = client.delete(
+            f"/api/v1/me/events/{event_id}", headers=_auth(tok)
+        )
+    assert deleted.status_code == 204
+    me = client.get("/api/v1/me/events", headers=_auth(tok))
+    assert me.json()["total"] == 0
+
+
+def test_organizer_cannot_delete_others_event(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_delete_other.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "a@example.com")
+        _set_role(db_url, "a@example.com", "organizer")
+        tok_a = _login(client, "a@example.com")["access_token"]
+        created = _create_as_organizer(client, tok_a, slug="owned-by-a")
+
+        _register(client, "b@example.com")
+        _set_role(db_url, "b@example.com", "organizer")
+        tok_b = _login(client, "b@example.com")["access_token"]
+
+        deleted = client.delete(
+            f"/api/v1/me/events/{created.json()['event_id']}",
+            headers=_auth(tok_b),
+        )
+    assert deleted.status_code == 404
+
+
 def test_moderation_queue_requires_role(tmp_path):
     db_url = f"sqlite:///{tmp_path / 'mod_gate.sqlite3'}"
     app = create_app(db_url)
