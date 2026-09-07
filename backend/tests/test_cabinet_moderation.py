@@ -434,3 +434,49 @@ def test_organizer_cannot_publish_others_event(tmp_path):
             headers=_auth(tok_b),
         )
     assert pub.status_code == 404
+
+
+def _past_event_payload(slug):
+    return {
+        "title": f"Прошедшее {slug}",
+        "slug": slug,
+        "category": "Культура",
+        "date": (date.today() - timedelta(days=5)).isoformat(),
+        "time": "18:00",
+        "venue": "Площадка",
+        "price": "Бесплатно",
+    }
+
+
+def test_organizer_event_limit(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'limit.sqlite3'}"
+    app = create_app(db_url, max_events_per_organizer=1)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        tok = _login(client, "org@example.com")["access_token"]
+
+        first = _create_as_organizer(client, tok, slug="limit-1")
+        assert first.status_code == 201
+
+        second = _create_as_organizer(client, tok, slug="limit-2")
+        assert second.status_code == 409
+
+
+def test_past_events_do_not_count_towards_limit(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'limit_past.sqlite3'}"
+    app = create_app(db_url, max_events_per_organizer=1)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        tok = _login(client, "org@example.com")["access_token"]
+
+        # Прошедшее событие не занимает слот лимита
+        past = client.post(
+            "/api/v1/events", json=_past_event_payload("past-1"), headers=_auth(tok)
+        )
+        assert past.status_code == 201
+
+        # Предстоящее событие создаётся свободно
+        future = _create_as_organizer(client, tok, slug="future-1")
+        assert future.status_code == 201

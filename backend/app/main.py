@@ -79,7 +79,10 @@ def seed_demo_events(session: Session) -> None:
     session.commit()
 
 
-def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
+def create_app(
+    database_url: str = DEFAULT_DATABASE_URL,
+    max_events_per_organizer: int = 20,
+) -> FastAPI:
     engine = build_engine(database_url)
     Base.metadata.create_all(engine)
 
@@ -139,6 +142,23 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         session: Session = Depends(get_session),
         current_user: User = Depends(require_role("organizer", "admin")),
     ) -> dict[str, object]:
+        # Лимит на число предстоящих (не прошедших) событий организатора.
+        active_count = session.scalar(
+            select(func.count())
+            .select_from(Event)
+            .where(
+                Event.organizer_id == current_user.id,
+                Event.date >= date.today(),
+            )
+        )
+        if active_count is not None and active_count >= max_events_per_organizer:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Превышен лимит: не более {max_events_per_organizer} "
+                    "предстоящих событий у одного организатора"
+                ),
+            )
         event = Event(
             **payload.model_dump(),
             organizer_id=current_user.id,
