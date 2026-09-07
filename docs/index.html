@@ -51,6 +51,10 @@
     .primary-btn.fav:hover { background: #c01d4e; }
     .ghost-btn { background: #fff; border: 1px solid var(--line); color: var(--ink); }
     .ghost-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+    .ico { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-actions button { display: inline-flex; align-items: center; gap: 8px; }
+    .icon-btn { display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 10px; padding: 11px 14px; font-weight: 700; background: transparent; color: var(--ink); transition: .2s ease; }
+    .icon-btn:hover { color: var(--accent-dark); background: var(--soft-blue); }
     .screen { display: none; padding: 42px 0 80px; }
     .screen.active { display: block; }
     .eyebrow { color: var(--accent-dark); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 800; margin-bottom: 12px; }
@@ -244,10 +248,19 @@
     .mini-btn.danger:hover { background: #fdebea; }
     .status.draft { color: var(--muted); background: #eef1f5; }
     .my-events-empty { background: #fff; border: 1px dashed var(--line); border-radius: var(--radius); padding: 40px; text-align: center; color: var(--muted); }
+    @media (max-width: 1080px) {
+      .brand span { display: none; }
+      .brand { min-width: 0; }
+    }
+    @media (max-width: 640px) {
+      .nav-actions { gap: 8px; }
+      .nav-actions button { padding: 11px; }
+    }
     @media (max-width: 900px) {
       .topbar { height: auto; padding: 14px 0; flex-wrap: wrap; gap: 12px; }
       .brand { min-width: 0; flex: 1; }
       .top-search { order: 3; flex-basis: 100%; }
+      .nav-actions .btn-label { display: none; }
       .hero-search { grid-template-columns: 1fr 1fr; }
       .hero-search label:first-child { grid-column: 1/-1; }
       .events-grid { grid-template-columns: repeat(2, 1fr); }
@@ -274,12 +287,17 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="shell" style="display:flex;align-items:center;gap:28px;width:min(1240px,calc(100% - 40px));">
-      <a class="brand" href="#" onclick="showScreen('home'); return false;">
+    <div class="shell" style="display:flex;align-items:center;gap:22px;width:min(1240px,calc(100% - 40px));">
+      <a class="brand" href="#" onclick="showScreen('home'); return false;" title="На главную">
         <i class="brand-mark"></i><span>что у нас<br>там завтра<small>городская афиша</small></span>
       </a>
       <div class="top-search"><span class="search-icon">⌕</span><input placeholder="Найти событие, место или организатора" onkeydown="if(event.key==='Enter') searchFromTop(event)"></div>
-      <div class="nav-actions"><button class="link-btn" onclick="showScreen('calendar')">Календарь</button><span id="nav-user"></span><button class="primary-btn" id="add-event-btn" onclick="handleAddEventClick()">Добавить событие</button><button class="ghost-btn" onclick="promptApiBase()" title="Настроить адрес API">⚙ API</button></div>
+      <div class="nav-actions">
+        <button class="icon-btn" onclick="showScreen('calendar')" title="Календарь"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="btn-label">Календарь</span></button>
+        <span id="nav-user"></span>
+        <button class="primary-btn" id="add-event-btn" onclick="handleAddEventClick()" title="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button>
+        <button class="ghost-btn" onclick="promptApiBase()" title="Настроить адрес API">⚙<span class="btn-label"> API</span></button>
+      </div>
     </div>
   </header>
 
@@ -1278,7 +1296,7 @@
         if (user) {
           navUser.innerHTML = `<button class="user-chip" onclick="showScreen('auth')" title="Личный кабинет">${escapeHtml(user.full_name || user.email)}<span class="role">${escapeHtml(user.role)}</span></button>`;
         } else {
-          navUser.innerHTML = `<button class="ghost-btn" onclick="showScreen('auth')">Войти</button>`;
+          navUser.innerHTML = `<button class="ghost-btn" onclick="showScreen('auth')" title="Войти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v15" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="14.5" cy="13" r="1.3" fill="currentColor"/></svg><span class="btn-label">Войти</span></button>`;
         }
       }
     }
