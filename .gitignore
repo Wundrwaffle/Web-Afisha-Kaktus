@@ -166,3 +166,6 @@ build/
 # Cache
 .cache/
 *.cache
+
+# Session handoff (local, not for repo)
+report.md
