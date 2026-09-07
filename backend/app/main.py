@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from .db import Base, build_engine, build_session_factory, session_dependency
@@ -453,6 +453,79 @@ def create_app(
             event.moderation_note = (payload.reason or "").strip()
         else:
             event.moderation_note = None
+        session.commit()
+        session.refresh(event)
+        return serialize_event(event)
+
+    # --- Модераторский контроль над событиями (любые статусы) ---
+    # Модератор/админ может править, удалять и снимать с публикации любое
+    # событие — например, клиент запостил с ошибкой, а модерация уже прошла.
+
+    class UnpublishRequest(BaseModel):
+        reason: str = Field(min_length=3, max_length=500)
+
+    @app.get("/api/v1/moderation/events")
+    def moderation_events(
+        status: str | None = Query(default=None),
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> dict[str, object]:
+        statement = select(Event)
+        if status:
+            statement = statement.where(Event.status == status)
+        statement = statement.order_by(Event.date, Event.time)
+        events = session.scalars(statement).all()
+        items = [serialize_event(event) for event in events]
+        return {"items": items, "total": len(items)}
+
+    @app.patch("/api/v1/moderation/events/{event_id}")
+    def moderator_update_event(
+        event_id: int,
+        payload: EventUpdate,
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> dict[str, object]:
+        event = session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+        changes = payload.model_dump(exclude_unset=True)
+        for field, value in changes.items():
+            setattr(event, field, value)
+        session.commit()
+        session.refresh(event)
+        return serialize_event(event)
+
+    @app.delete("/api/v1/moderation/events/{event_id}", status_code=204)
+    def moderator_delete_event(
+        event_id: int,
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> None:
+        event = session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+        # Чистим избранное, чтобы не остались битые ссылки.
+        session.execute(delete(Favorite).where(Favorite.event_id == event_id))
+        session.delete(event)
+        session.commit()
+
+    @app.post("/api/v1/moderation/events/{event_id}/unpublish")
+    def moderator_unpublish_event(
+        event_id: int,
+        payload: UnpublishRequest,
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> dict[str, object]:
+        event = session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+        if event.status != "published":
+            raise HTTPException(
+                status_code=409, detail="Event is not published"
+            )
+        # Снятие с публикации: возвращаем организатору как черновик с причиной.
+        event.status = "draft"
+        event.moderation_note = payload.reason.strip()
         session.commit()
         session.refresh(event)
         return serialize_event(event)
