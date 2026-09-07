@@ -177,9 +177,11 @@ def create_app(
         date_from: date | None = None,
         date_to: date | None = None,
         sort: str = "date",
+        limit: int = Query(default=24, ge=1, le=100),
+        offset: int = Query(default=0, ge=0),
         session: Session = Depends(get_session),
     ) -> dict[str, object]:
-        statement = select(Event).where(Event.status == "published")
+        conditions = [Event.status == "published"]
 
         # По умолчанию показываем события только с сегодняшнего дня (не прошедшие).
         if date_from is None:
@@ -190,7 +192,7 @@ def create_app(
             # поэтому поиск по заглавной/строчной кириллице не находил нижний/верхний
             # регистр. Нормализуем обе стороны через lower().
             pattern = f"%{search.lower()}%"
-            statement = statement.where(
+            conditions.append(
                 or_(
                     func.lower(Event.title).like(pattern),
                     func.lower(Event.category).like(pattern),
@@ -198,20 +200,38 @@ def create_app(
                 )
             )
         if category:
-            statement = statement.where(Event.category == category)
+            conditions.append(Event.category == category)
         if venue:
-            statement = statement.where(Event.venue == venue)
+            conditions.append(Event.venue == venue)
         if date_from:
-            statement = statement.where(Event.date >= date_from)
+            conditions.append(Event.date >= date_from)
         if date_to:
-            statement = statement.where(Event.date <= date_to)
+            conditions.append(Event.date <= date_to)
 
-        statement = statement.order_by(
-            func.lower(Event.title) if sort == "title" else Event.date, Event.time
+        # Полное число совпадений до пагинации (для «Показать ещё» и счётчика).
+        total = session.scalar(
+            select(func.count()).select_from(Event).where(*conditions)
+        ) or 0
+
+        statement = (
+            select(Event)
+            .where(*conditions)
+            .order_by(
+                func.lower(Event.title) if sort == "title" else Event.date,
+                Event.time,
+            )
+            .offset(offset)
+            .limit(limit)
         )
         events = session.scalars(statement).all()
         items = [serialize_event(event) for event in events]
-        return {"items": items, "total": len(items)}
+        return {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + len(items) < total,
+        }
 
     @app.get("/api/v1/meta/venues")
     def list_venues(session: Session = Depends(get_session)) -> dict[str, object]:

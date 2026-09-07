@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -137,6 +137,66 @@ def test_calendar_returns_events_inside_date_range(tmp_path):
     assert response.status_code == 200
     assert response.json()["total"] == 1
     assert response.json()["items"][0]["slug"] == "bolshoy-ekran"
+
+
+def test_events_pagination_limit_and_offset(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'pag.sqlite3'}"
+    app = create_app(db_url)
+
+    # Создаём достаточно published-событий в будущем, чтобы была пагинация.
+    from sqlalchemy import select
+
+    from app.db import build_engine, build_session_factory
+    from app.models import Event
+
+    engine = build_engine(db_url)
+    with build_session_factory(engine)() as session:
+        for i in range(5):
+            session.add(Event(
+                title=f"Пагинация {i}",
+                slug=f"pagination-{i}",
+                status="published",
+                category="Тест",
+                date=date.today() + timedelta(days=1 + i),
+                time=time(18, 0),
+                venue="Площадка",
+                price="Бесплатно",
+            ))
+        session.commit()
+
+    with TestClient(app) as client:
+        page1 = client.get("/api/v1/events", params={"limit": 2, "offset": 0})
+        page2 = client.get("/api/v1/events", params={"limit": 2, "offset": 2})
+
+    body1 = page1.json()
+    body2 = page2.json()
+
+    # total — полное число совпадений (демо 2 + наши 5), не зависит от limit.
+    assert body1["total"] == 7
+    assert len(body1["items"]) == 2
+    assert body1["has_more"] is True
+
+    assert body2["total"] == 7
+    assert len(body2["items"]) == 2
+    assert body2["has_more"] is True
+
+    # Страницы не пересекаются по slug.
+    slugs1 = {e["slug"] for e in body1["items"]}
+    slugs2 = {e["slug"] for e in body2["items"]}
+    assert slugs1.isdisjoint(slugs2)
+
+
+def test_events_pagination_last_page_has_no_more(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'pag_last.sqlite3'}"
+    app = create_app(db_url)
+
+    with TestClient(app) as client:
+        # Демо-событий всего 2; запрашиваем limit=2 offset=0 — это вся выдача.
+        body = client.get("/api/v1/events", params={"limit": 2, "offset": 0}).json()
+
+    assert body["total"] == 2
+    assert len(body["items"]) == 2
+    assert body["has_more"] is False
 
 
 def test_create_event_starts_in_pending_moderation(tmp_path):

@@ -426,60 +426,59 @@
       return response.json();
     }
 
-    // --- Пагинация «Показать ещё» (как в Яндекс.Афише) ---
-    // Начально показываем 2 ряда плиток, по клику добавляем 3 ряда.
-    const INITIAL_ROWS = 2;
-    const EXTRA_ROWS = 3;
-    let eventsState = { home: [], catalog: [] };
-    let shownRows = { home: INITIAL_ROWS, catalog: INITIAL_ROWS };
-
-    // Сколько колонок в сетке на текущей ширине экрана
-    function gridColumns(gridEl) {
-      return getComputedStyle(gridEl).gridTemplateColumns.split(' ').length;
-    }
+    // --- Серверная пагинация «Показать ещё» (как в Яндекс.Афише) ---
+    const PAGE_SIZE = 24;
+    let eventsState = {
+      home: { items: [], total: 0, hasMore: false },
+      catalog: { items: [], total: 0, hasMore: false },
+    };
+    let currentParams = { home: {}, catalog: {} };
 
     async function loadEvents(params = {}, target = 'both') {
       try {
-        const data = await fetchEvents(params);
-        const items = data.items;
-
         if (target === 'home' || target === 'both') {
           if (homeGrid) {
-            eventsState.home = items;
-            shownRows.home = INITIAL_ROWS;
-            renderEvents('home');
+            currentParams.home = params;
+            await loadEventsPage('home', params, true);
           }
         }
         if (target === 'catalog' || target === 'both') {
           if (catalogGrid) {
-            eventsState.catalog = items;
-            shownRows.catalog = INITIAL_ROWS;
-            renderEvents('catalog');
+            currentParams.catalog = params;
+            await loadEventsPage('catalog', params, true);
           }
-        }
-        if (target === 'catalog' || target === 'both') {
-          const catalogTitle = document.querySelector('#catalog .section-head h2');
-          if (catalogTitle) catalogTitle.textContent = pluralEvents(data.total);
         }
       } catch (error) {
         toast(error.message);
       }
     }
 
+    async function loadEventsPage(which, params, reset) {
+      const state = eventsState[which];
+      const offset = reset ? 0 : state.items.length;
+      const data = await fetchEvents({ ...params, limit: PAGE_SIZE, offset });
+
+      state.items = reset ? data.items : state.items.concat(data.items);
+      state.total = data.total;
+      state.hasMore = data.has_more;
+      renderEvents(which, { append: !reset });
+
+      if (which === 'catalog') {
+        const catalogTitle = document.querySelector('#catalog .section-head h2');
+        if (catalogTitle) catalogTitle.textContent = pluralEvents(data.total);
+      }
+    }
+
     function renderEvents(which, { append = false } = {}) {
       const grid = which === 'home' ? homeGrid : catalogGrid;
-      const items = eventsState[which];
-      const cols = gridColumns(grid);
-      const rows = shownRows[which];
-      const visible = rows * cols;
+      const state = eventsState[which];
 
       const emptyMsg = which === 'home' ? 'Событий пока нет.' : 'По заданным условиям ничего не найдено.';
-      const batch = items.slice(0, visible);
 
       if (append) {
         // Дозагрузка: добавляем только новые карточки, не трогая уже рендеренные.
-        let already = grid.querySelectorAll('.event-card').length;
-        const firstNew = items.slice(already, visible);
+        const already = grid.querySelectorAll('.event-card').length;
+        const firstNew = state.items.slice(already);
         if (firstNew.length) {
           const frag = document.createElement('template');
           frag.innerHTML = firstNew.map(eventCard).join('');
@@ -495,7 +494,7 @@
           }
         }
       } else {
-        grid.innerHTML = batch.map(eventCard).join('') || `<p class="meta">${emptyMsg}</p>`;
+        grid.innerHTML = state.items.map(eventCard).join('') || `<p class="meta">${emptyMsg}</p>`;
       }
 
       // Обновляем кнопку «Показать ещё» под сеткой
@@ -507,11 +506,10 @@
         grid.after(wrap);
         btn = wrap.querySelector('.load-more');
         btn.addEventListener('click', () => {
-          shownRows[which] += EXTRA_ROWS;
-          renderEvents(which, { append: true });
+          loadEventsPage(which, currentParams[which], false);
         });
       }
-      btn.hidden = items.length <= visible;
+      btn.hidden = !state.hasMore;
     }
 
     // Отдельная загрузка для ленты дат на главной (независимо от фильтров каталога)
