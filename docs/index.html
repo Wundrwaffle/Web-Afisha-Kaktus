@@ -368,9 +368,11 @@
 
     <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Модерация</h1><p>Проверяйте новые события и управляйте опубликованными.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px" id="mod-tabs"><button class="chip active" data-mod-status="pending_moderation">На проверке</button><button class="chip" data-mod-status="published">Опубликованные</button><button class="chip" data-mod-status="rejected">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div></div></section>
 
+    <section id="admin" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Пользователи и роли</h1><p>Назначайте роли: visitor, organizer, moderator, admin.</p></div></div><div class="panel" id="admin-users-list" style="padding:0"></div></div></section>
+
     <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div style="display:flex;gap:10px;align-items:center"><button class="primary-btn" onclick="handleAddEventClick()">+ Добавить событие</button><button class="ghost-btn" onclick="handleLogout()">Выйти</button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div></div></div></section>
   </main>
-  <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
+  <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="admin">Админка</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <div class="toast" id="toast"></div>
   <script>
     // API base URL: можно переопределить через ?api=... или localStorage
@@ -420,6 +422,7 @@
       if (name === 'calendar') loadCalendar();
       if (name === 'auth') renderCabinet();
       if (name === 'moderation') loadModerationQueue();
+      if (name === 'admin') loadAdminUsers();
     }
 
     tabs.forEach(t => t.addEventListener('click', () => {
@@ -1379,6 +1382,7 @@
         <span class="status ${statusClass(e.status)}">${statusLabel(e.status)}</span>
         ${e.status === 'published' ? `<button class="mini-btn" onclick="togglePublish(${e.event_id}, 'unpublish')">Снять с публикации</button>` : ''}
         ${e.status === 'draft' ? `<button class="mini-btn primary" onclick="togglePublish(${e.event_id}, 'publish')">Опубликовать</button>` : ''}
+        ${e.status === 'rejected' ? `<button class="mini-btn primary" onclick="togglePublish(${e.event_id}, 'resubmit')">Отправить на повторную проверку</button>` : ''}
         <button class="mini-btn" onclick="openEditEvent(${e.event_id})">Редактировать</button>
         <button class="mini-btn danger" onclick="deleteEvent(${e.event_id})">Удалить</button>
       </div>
@@ -1395,7 +1399,7 @@
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось выполнить действие');
-        toast(action === 'publish' ? 'Событие опубликовано' : 'Событие снято с публикации');
+        toast(action === 'publish' ? 'Событие опубликовано' : (action === 'resubmit' ? 'Отправлено на повторную проверку' : 'Событие снято с публикации'));
         await loadMyEvents();
       } catch (error) {
         toast(error.message);
@@ -1552,6 +1556,55 @@
         loadModerationQueue();
       });
     });
+
+    // === Админка: пользователи и роли ===
+    async function loadAdminUsers() {
+      const token = getAccessToken();
+      if (!token) { toast('Войдите как админ'); return; }
+      try {
+        const resp = await fetch(`${API_BASE}/admin/users`, { headers: {Authorization: `Bearer ${token}`} });
+        if (resp.status === 403) { toast('Недостаточно прав: нужна роль админа'); return; }
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить пользователей');
+        renderAdminUsers(data.items);
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+    function renderAdminUsers(users) {
+      const list = document.getElementById('admin-users-list');
+      if (!list) return;
+      if (!users.length) { list.innerHTML = '<div class="my-events-empty">Пользователей пока нет.</div>'; return; }
+      const roles = ['visitor', 'organizer', 'moderator', 'admin'];
+      list.innerHTML = users.map(u => `
+    <div class="my-event">
+      <div>
+        <div class="me-title">${escapeHtml(u.full_name)} <span style="color:var(--muted);font-weight:600">· ${escapeHtml(u.email)}</span></div>
+        <div class="me-meta">id ${u.id}${u.is_active === false ? ' · деактивирован' : ''}</div>
+      </div>
+      <div class="me-actions" style="align-items:center">
+        <select class="ghost-btn" style="padding:10px 12px;font-weight:700" data-id="${u.id}" onchange="setUserRole(${u.id}, this.value)">
+          ${roles.map(r => `<option value="${r}"${r === u.role ? ' selected' : ''}>${r}</option>`).join('')}
+        </select>
+      </div>
+    </div>`).join('');
+    }
+    async function setUserRole(id, role) {
+      const token = getAccessToken();
+      try {
+        const resp = await fetch(`${API_BASE}/admin/users/${id}/role`, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+          body: JSON.stringify({role}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось изменить роль');
+        toast(`Роль изменена: ${data.full_name || data.email} → ${data.role}`);
+      } catch (error) {
+        toast(error.message);
+        loadAdminUsers(); // откат select при ошибке
+      }
+    }
 
     function switchAuthMode(mode) {
       const isRegister = mode === 'register';
