@@ -1,4 +1,4 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -361,6 +361,21 @@ def create_app(
         session.refresh(event)
         return serialize_event(event)
 
+    @app.post("/api/v1/me/events/{event_id}/resubmit")
+    def resubmit_event(
+        event_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> dict[str, object]:
+        event = _get_own_event(session, event_id, current_user)
+        if event.status != "rejected":
+            raise HTTPException(status_code=409, detail="Event is not rejected")
+        event.status = "pending_moderation"
+        event.moderation_note = None
+        session.commit()
+        session.refresh(event)
+        return serialize_event(event)
+
     # --- Избранное (привязка к аккаунту) ---
     @app.get("/api/v1/me/favorites")
     def my_favorites(
@@ -529,6 +544,49 @@ def create_app(
         session.commit()
         session.refresh(event)
         return serialize_event(event)
+
+    # --- Админка: управление пользователями и ролями (Этап 4) ---
+    ROLES = {"visitor", "organizer", "moderator", "admin"}
+
+    class RoleUpdate(BaseModel):
+        role: str
+
+    def serialize_admin_user(user: User) -> dict[str, object]:
+        return {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        }
+
+    @app.get("/api/v1/admin/users")
+    def admin_list_users(
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("admin")),
+    ) -> dict[str, object]:
+        users = session.scalars(select(User).order_by(User.id)).all()
+        return {"items": [serialize_admin_user(u) for u in users], "total": len(users)}
+
+    @app.patch("/api/v1/admin/users/{user_id}/role")
+    def admin_set_role(
+        user_id: int,
+        payload: RoleUpdate,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("admin")),
+    ) -> dict[str, object]:
+        if payload.role not in ROLES:
+            raise HTTPException(status_code=422, detail="Unknown role")
+        if user_id == current_user.id:
+            raise HTTPException(status_code=400, detail="Нельзя менять роль самому себе")
+        target = session.get(User, user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        target.role = payload.role
+        session.commit()
+        session.refresh(target)
+        return serialize_admin_user(target)
 
     return app
 
