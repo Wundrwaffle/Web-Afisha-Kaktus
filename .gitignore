@@ -169,3 +169,6 @@ build/
 
 # Session handoff (local, not for repo)
 report.md
+
+# Telegram scratch file (local runtime artifact)
+tg.txt
