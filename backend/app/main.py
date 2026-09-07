@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .db import Base, build_engine, build_session_factory, session_dependency
-from .models import Event, User
+from .models import Event, Favorite, User
 from .auth import build_auth_routes
 
 
@@ -360,6 +360,58 @@ def create_app(
         session.commit()
         session.refresh(event)
         return serialize_event(event)
+
+    # --- Избранное (привязка к аккаунту) ---
+    @app.get("/api/v1/me/favorites")
+    def my_favorites(
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> dict[str, object]:
+        statement = (
+            select(Event)
+            .join(Favorite, Favorite.event_id == Event.id)
+            .where(Favorite.user_id == current_user.id)
+            .order_by(Event.date, Event.time)
+        )
+        events = session.scalars(statement).all()
+        items = [serialize_event(event) for event in events]
+        return {"items": items, "total": len(items)}
+
+    @app.post("/api/v1/me/favorites/{event_id}", status_code=201)
+    def add_favorite(
+        event_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> dict[str, object]:
+        event = session.get(Event, event_id)
+        if event is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+        existing = session.scalar(
+            select(Favorite).where(
+                Favorite.user_id == current_user.id,
+                Favorite.event_id == event_id,
+            )
+        )
+        if existing is None:
+            session.add(Favorite(user_id=current_user.id, event_id=event_id))
+            session.commit()
+        return {"status": "ok", "favorited": True}
+
+    @app.delete("/api/v1/me/favorites/{event_id}", status_code=204)
+    def remove_favorite(
+        event_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> None:
+        existing = session.scalar(
+            select(Favorite).where(
+                Favorite.user_id == current_user.id,
+                Favorite.event_id == event_id,
+            )
+        )
+        if existing is not None:
+            session.delete(existing)
+            session.commit()
 
     # --- Модерация ---
     class ReviewRequest(BaseModel):
