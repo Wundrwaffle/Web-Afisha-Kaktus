@@ -194,6 +194,7 @@
     .status.pending { color: var(--amber); background: #fff5d9; }
     .status.published { color: var(--green); background: #e4f8ef; }
     .status.rejected { color: #b53c37; background: #fdebea; }
+    .reject-note { color: #b53c37; margin-top: 6px; font-size: 12px; }
     .moderation-main { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
     .moderation-header { display: flex; justify-content: space-between; align-items: start; gap: 18px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
     .moderation-header h2 { font-size: 25px; margin-bottom: 8px; }
@@ -1105,7 +1106,8 @@
         list.innerHTML = data.items.map(e => `
     <div class="my-event">
       <div><div class="me-title">${escapeHtml(e.title)}</div>
-        <div class="me-meta">${escapeHtml(e.category)} · ${formatDate(e.date)} ${e.time}</div></div>
+        <div class="me-meta">${escapeHtml(e.category)} · ${formatDate(e.date)} ${e.time}</div>
+        ${e.status === 'rejected' && e.moderation_note ? `<div class="me-meta reject-note">Причина отказа: ${escapeHtml(e.moderation_note)}</div>` : ''}</div>
       <span class="status ${statusClass(e.status)}">${statusLabel(e.status)}</span>
     </div>`).join('');
       } catch (error) {
@@ -1163,11 +1165,17 @@
       }
     }
     async function reviewModEvent(id, decision) {
+      let reason = null;
+      if (decision === 'reject') {
+        reason = prompt('Укажите причину отказа (обязательно):');
+        if (reason === null) return; // пользователь отменил
+        if (!reason.trim()) { toast('Причина отказа обязательна'); return; }
+      }
       try {
         const resp = await fetch(`${API_BASE}/moderation/events/${id}/review`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${getAccessToken()}`},
-          body: JSON.stringify({decision}),
+          body: JSON.stringify(decision === 'reject' ? {decision, reason} : {decision}),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось обработать событие');

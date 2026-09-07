@@ -227,7 +227,7 @@ def test_moderator_reviews_queue(tmp_path):
         )
         rj = client.post(
             f"/api/v1/moderation/events/{id2}/review",
-            json={"decision": "reject"},
+            json={"decision": "reject", "reason": "Недостаточно информации о площадке"},
             headers=_auth(mod_tok),
         )
         assert ap.json()["status"] == "published"
@@ -236,3 +236,104 @@ def test_moderator_reviews_queue(tmp_path):
         # Очередь пуста
         q2 = client.get("/api/v1/moderation/queue", headers=_auth(mod_tok))
         assert q2.json()["total"] == 0
+
+
+def test_reject_requires_reason(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'mod_reject_reason.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        org_tok = _login(client, "org@example.com")["access_token"]
+        ev = _create_as_organizer(client, org_tok, slug="ev-reject")
+        event_id = ev.json()["event_id"]
+
+        _register(client, "mod@example.com")
+        _set_role(db_url, "mod@example.com", "moderator")
+        mod_tok = _login(client, "mod@example.com")["access_token"]
+
+        # Отказ без причины → 422
+        no_reason = client.post(
+            f"/api/v1/moderation/events/{event_id}/review",
+            json={"decision": "reject"},
+            headers=_auth(mod_tok),
+        )
+        assert no_reason.status_code == 422
+
+        # Пустая строка тоже не проходит
+        blank = client.post(
+            f"/api/v1/moderation/events/{event_id}/review",
+            json={"decision": "reject", "reason": "   "},
+            headers=_auth(mod_tok),
+        )
+        assert blank.status_code == 422
+
+        # Событие осталось в очереди (не отсеяно ошибочным отказом)
+        q = client.get("/api/v1/moderation/queue", headers=_auth(mod_tok))
+        assert q.json()["total"] == 1
+
+        # Корректный отказ с причиной
+        ok = client.post(
+            f"/api/v1/moderation/events/{event_id}/review",
+            json={"decision": "reject", "reason": "Нет фото"},
+            headers=_auth(mod_tok),
+        )
+        assert ok.status_code == 200
+        assert ok.json()["status"] == "rejected"
+        assert ok.json()["moderation_note"] == "Нет фото"
+
+
+def test_rejected_reason_visible_to_organizer(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'mod_reason_visible.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        org_tok = _login(client, "org@example.com")["access_token"]
+        ev = _create_as_organizer(client, org_tok, slug="ev-visible")
+        event_id = ev.json()["event_id"]
+
+        _register(client, "mod@example.com")
+        _set_role(db_url, "mod@example.com", "moderator")
+        mod_tok = _login(client, "mod@example.com")["access_token"]
+        client.post(
+            f"/api/v1/moderation/events/{event_id}/review",
+            json={"decision": "reject", "reason": "Дубликат события"},
+            headers=_auth(mod_tok),
+        )
+
+        # Организатор видит причину в своём списке
+        me = client.get("/api/v1/me/events", headers=_auth(org_tok))
+        item = next(
+            e for e in me.json()["items"] if e["event_id"] == event_id
+        )
+        assert item["status"] == "rejected"
+        assert item["moderation_note"] == "Дубликат события"
+
+
+def test_approve_clears_note(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'mod_approve_clear.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        org_tok = _login(client, "org@example.com")["access_token"]
+        ev = _create_as_organizer(client, org_tok, slug="ev-clear")
+        event_id = ev.json()["event_id"]
+
+        _register(client, "mod@example.com")
+        _set_role(db_url, "mod@example.com", "moderator")
+        mod_tok = _login(client, "mod@example.com")["access_token"]
+
+        client.post(
+            f"/api/v1/moderation/events/{event_id}/review",
+            json={"decision": "approve", "reason": "лишнее"},
+            headers=_auth(mod_tok),
+        )
+        q = client.get("/api/v1/moderation/queue", headers=_auth(mod_tok))
+        # Одобренное событие ушло из очереди и не несёт заметки
+        assert q.json()["total"] == 0
+        me = client.get("/api/v1/me/events", headers=_auth(org_tok))
+        item = next(e for e in me.json()["items"] if e["event_id"] == event_id)
+        assert item["status"] == "published"
+        assert item["moderation_note"] is None

@@ -27,6 +27,9 @@ class Event(Base):
     time: Mapped[time] = mapped_column(Time, nullable=False)
     venue: Mapped[str] = mapped_column(String(180), nullable=False)
     price: Mapped[str] = mapped_column(String(80), nullable=False)
+    moderation_note: Mapped[str | None] = mapped_column(
+        String(500), nullable=True
+    )
 
 
 class User(Base):

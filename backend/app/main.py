@@ -67,6 +67,7 @@ def serialize_event(event: Event) -> dict[str, object]:
         "venue": event.venue,
         "price": event.price,
         "organizer_id": event.organizer_id,
+        "moderation_note": event.moderation_note,
     }
 
 
@@ -95,6 +96,11 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
                 with engine.begin() as _conn:
                     _conn.execute(_text(
                         "ALTER TABLE events ADD COLUMN organizer_id INTEGER REFERENCES users(id)"
+                    ))
+            if "moderation_note" not in _cols:
+                with engine.begin() as _conn:
+                    _conn.execute(_text(
+                        "ALTER TABLE events ADD COLUMN moderation_note VARCHAR(500)"
                     ))
 
     session_factory = build_session_factory(engine)
@@ -290,6 +296,7 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
     # --- Модерация ---
     class ReviewRequest(BaseModel):
         decision: str = Field(pattern=r"^(approve|reject)$")
+        reason: str | None = Field(default=None, max_length=500)
 
     @app.get("/api/v1/moderation/queue")
     def moderation_queue(
@@ -317,7 +324,15 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
             raise HTTPException(status_code=404, detail="Event not found")
         if event.status != "pending_moderation":
             raise HTTPException(status_code=409, detail="Event is not pending moderation")
+        if payload.decision == "reject" and not (payload.reason or "").strip():
+            raise HTTPException(
+                status_code=422, detail="Причина отказа обязательна при отклонении"
+            )
         event.status = "published" if payload.decision == "approve" else "rejected"
+        if payload.decision == "reject":
+            event.moderation_note = (payload.reason or "").strip()
+        else:
+            event.moderation_note = None
         session.commit()
         session.refresh(event)
         return serialize_event(event)
