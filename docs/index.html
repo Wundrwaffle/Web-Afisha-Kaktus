@@ -233,6 +233,11 @@
     .my-event .me-title { font-weight: 800; font-size: 15px; }
     .my-event .me-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
     .my-event .status { flex-shrink: 0; }
+    .my-event .me-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .mini-btn { border: 1px solid var(--line); background: #f6f8fb; color: var(--ink); border-radius: 8px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; }
+    .mini-btn:hover { background: #eef1f5; }
+    .mini-btn.primary { background: var(--soft-blue); color: var(--accent-dark); border-color: transparent; }
+    .status.draft { color: var(--muted); background: #eef1f5; }
     .my-events-empty { background: #fff; border: 1px dashed var(--line); border-radius: var(--radius); padding: 40px; text-align: center; color: var(--muted); }
     @media (max-width: 900px) {
       .topbar { height: auto; padding: 14px 0; flex-wrap: wrap; gap: 12px; }
@@ -1077,10 +1082,10 @@
 
     // === Кабинет организатора ===
     function statusClass(status) {
-      return ({pending_moderation: 'pending', published: 'published', rejected: 'rejected'})[status] || '';
+      return ({pending_moderation: 'pending', published: 'published', rejected: 'rejected', draft: 'draft'})[status] || '';
     }
     function statusLabel(status) {
-      return ({pending_moderation: 'На проверке', published: 'Опубликовано', rejected: 'Отклонено'})[status] || status;
+      return ({pending_moderation: 'На проверке', published: 'Опубликовано', rejected: 'Отклонено', draft: 'Снято с публикации'})[status] || status;
     }
     function renderCabinet() {
       const user = getStoredUser();
@@ -1108,8 +1113,26 @@
       <div><div class="me-title">${escapeHtml(e.title)}</div>
         <div class="me-meta">${escapeHtml(e.category)} · ${formatDate(e.date)} ${e.time}</div>
         ${e.status === 'rejected' && e.moderation_note ? `<div class="me-meta reject-note">Причина отказа: ${escapeHtml(e.moderation_note)}</div>` : ''}</div>
-      <span class="status ${statusClass(e.status)}">${statusLabel(e.status)}</span>
+      <div class="me-actions">
+        <span class="status ${statusClass(e.status)}">${statusLabel(e.status)}</span>
+        ${e.status === 'published' ? `<button class="mini-btn" onclick="togglePublish(${e.event_id}, 'unpublish')">Снять с публикации</button>` : ''}
+        ${e.status === 'draft' ? `<button class="mini-btn primary" onclick="togglePublish(${e.event_id}, 'publish')">Опубликовать</button>` : ''}
+      </div>
     </div>`).join('');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+    async function togglePublish(id, action) {
+      try {
+        const resp = await fetch(`${API_BASE}/me/events/${id}/${action}`, {
+          method: 'POST',
+          headers: {'Authorization': `Bearer ${getAccessToken()}`},
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось выполнить действие');
+        toast(action === 'publish' ? 'Событие опубликовано' : 'Событие снято с публикации');
+        await loadMyEvents();
       } catch (error) {
         toast(error.message);
       }

@@ -293,6 +293,34 @@ def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
         session.delete(event)
         session.commit()
 
+    @app.post("/api/v1/me/events/{event_id}/unpublish")
+    def unpublish_event(
+        event_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> dict[str, object]:
+        event = _get_own_event(session, event_id, current_user)
+        if event.status != "published":
+            raise HTTPException(status_code=409, detail="Event is not published")
+        event.status = "draft"
+        session.commit()
+        session.refresh(event)
+        return serialize_event(event)
+
+    @app.post("/api/v1/me/events/{event_id}/publish")
+    def publish_event(
+        event_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(require_role("organizer", "admin")),
+    ) -> dict[str, object]:
+        event = _get_own_event(session, event_id, current_user)
+        if event.status != "draft":
+            raise HTTPException(status_code=409, detail="Event is not a draft")
+        event.status = "published"
+        session.commit()
+        session.refresh(event)
+        return serialize_event(event)
+
     # --- Модерация ---
     class ReviewRequest(BaseModel):
         decision: str = Field(pattern=r"^(approve|reject)$")

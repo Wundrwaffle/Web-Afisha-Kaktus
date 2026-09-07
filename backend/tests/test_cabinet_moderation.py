@@ -337,3 +337,100 @@ def test_approve_clears_note(tmp_path):
         item = next(e for e in me.json()["items"] if e["event_id"] == event_id)
         assert item["status"] == "published"
         assert item["moderation_note"] is None
+
+
+def test_organizer_can_unpublish_and_republish(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_publish.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        org_tok = _login(client, "org@example.com")["access_token"]
+        ev = _create_as_organizer(client, org_tok, slug="ev-pub")
+        event_id = ev.json()["event_id"]
+
+        # Публикуем через модератора
+        _register(client, "mod@example.com")
+        _set_role(db_url, "mod@example.com", "moderator")
+        mod_tok = _login(client, "mod@example.com")["access_token"]
+        client.post(
+            f"/api/v1/moderation/events/{event_id}/review",
+            json={"decision": "approve"},
+            headers=_auth(mod_tok),
+        )
+
+        # Снимаем с публикации
+        unpub = client.post(
+            f"/api/v1/me/events/{event_id}/unpublish", headers=_auth(org_tok)
+        )
+        assert unpub.status_code == 200
+        assert unpub.json()["status"] == "draft"
+
+        # Событие ушло из публичного каталога
+        public = client.get("/api/v1/events", params={"search": "ev-pub"})
+        assert public.json()["total"] == 0
+
+        # Повторно публикуем
+        pub = client.post(
+            f"/api/v1/me/events/{event_id}/publish", headers=_auth(org_tok)
+        )
+        assert pub.status_code == 200
+        assert pub.json()["status"] == "published"
+
+        # Снова видно в каталоге
+        public2 = client.get("/api/v1/events", params={"search": "ev-pub"})
+        assert public2.json()["total"] == 1
+
+
+def test_unpublish_requires_published_status(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_unpub_gate.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        org_tok = _login(client, "org@example.com")["access_token"]
+        ev = _create_as_organizer(client, org_tok, slug="ev-pending")
+        event_id = ev.json()["event_id"]
+
+        # pending_moderation нельзя снять с публикации
+        unpub = client.post(
+            f"/api/v1/me/events/{event_id}/unpublish", headers=_auth(org_tok)
+        )
+        assert unpub.status_code == 409
+
+
+def test_publish_requires_draft_status(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_pub_gate.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "org@example.com")
+        _set_role(db_url, "org@example.com", "organizer")
+        org_tok = _login(client, "org@example.com")["access_token"]
+        ev = _create_as_organizer(client, org_tok, slug="ev-notdraft")
+        event_id = ev.json()["event_id"]
+
+        # pending_moderation нельзя опубликовать напрямую (минуя модерацию)
+        pub = client.post(
+            f"/api/v1/me/events/{event_id}/publish", headers=_auth(org_tok)
+        )
+        assert pub.status_code == 409
+
+
+def test_organizer_cannot_publish_others_event(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'cab_pub_other.sqlite3'}"
+    app = create_app(db_url)
+    with TestClient(app) as client:
+        _register(client, "a@example.com")
+        _set_role(db_url, "a@example.com", "organizer")
+        tok_a = _login(client, "a@example.com")["access_token"]
+        created = _create_as_organizer(client, tok_a, slug="owned-by-a")
+
+        _register(client, "b@example.com")
+        _set_role(db_url, "b@example.com", "organizer")
+        tok_b = _login(client, "b@example.com")["access_token"]
+
+        pub = client.post(
+            f"/api/v1/me/events/{created.json()['event_id']}/publish",
+            headers=_auth(tok_b),
+        )
+    assert pub.status_code == 404
