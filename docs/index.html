@@ -47,6 +47,8 @@
     .link-btn:hover { color: var(--accent-dark); }
     .primary-btn { background: var(--accent); color: #fff; box-shadow: 0 8px 18px rgba(0,153,255,.2); }
     .primary-btn:hover { background: var(--accent-dark); transform: translateY(-1px); }
+    .primary-btn.fav { background: #e0245e; box-shadow: 0 8px 18px rgba(224,36,94,.2); }
+    .primary-btn.fav:hover { background: #c01d4e; }
     .ghost-btn { background: #fff; border: 1px solid var(--line); color: var(--ink); }
     .ghost-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
     .screen { display: none; padding: 42px 0 80px; }
@@ -110,6 +112,7 @@
     .poster-title { position: relative; z-index: 1; font: 800 22px/1.02 Montserrat; max-width: 190px; }
     .date-pill { position: absolute; z-index: 2; top: 13px; left: 13px; background: #fff; color: var(--ink); border-radius: 9px; padding: 7px 9px; font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; }
     .heart { position: absolute; z-index: 2; top: 12px; right: 12px; border: 0; background: rgba(255,255,255,.9); color: var(--ink); width: 34px; height: 34px; border-radius: 50%; font-size: 17px; }
+    .heart.fav { background: #e0245e; color: #fff; }
     .card-body { padding: 15px; }
     .meta { color: var(--muted); font-size: 12px; line-height: 1.5; }
     .card-body h3 { font-size: 16px; margin: 7px 0 8px; }
@@ -237,6 +240,8 @@
     .mini-btn { border: 1px solid var(--line); background: #f6f8fb; color: var(--ink); border-radius: 8px; padding: 7px 12px; font-weight: 800; font-size: 12px; cursor: pointer; }
     .mini-btn:hover { background: #eef1f5; }
     .mini-btn.primary { background: var(--soft-blue); color: var(--accent-dark); border-color: transparent; }
+    .mini-btn.danger { color: #b53c37; background: #fff1f0; border-color: #f3c1bd; }
+    .mini-btn.danger:hover { background: #fdebea; }
     .status.draft { color: var(--muted); background: #eef1f5; }
     .my-events-empty { background: #fff; border: 1px dashed var(--line); border-radius: var(--radius); padding: 40px; text-align: center; color: var(--muted); }
     @media (max-width: 900px) {
@@ -281,8 +286,8 @@
   <main>
     <section id="home" class="screen active"><div class="shell">
       <div class="intro"><div><div class="eyebrow">Новокузнецк · сегодня</div><h1>Есть планы на завтра?</h1><p>Собрали события города в одном месте — от камерных встреч до больших фестивалей.</p></div><button class="ghost-btn" onclick="showScreen('catalog')">Смотреть всю афишу →</button></div>
-      <div class="hero-search"><label>Что ищем<input placeholder="Концерт, спорт, выставка..."></label><label>Когда<select><option>Любая дата</option><option>Сегодня</option><option>Завтра</option><option>На выходных</option></select></label><label>Категория<select><option>Все категории</option><option>Музыка</option><option>Спорт</option><option>Культура</option></select></label><button class="primary-btn" onclick="showScreen('catalog')">Найти события</button></div>
-      <div class="chips"><button class="chip active">Все события</button><button class="chip">Музыка</button><button class="chip">Культура</button><button class="chip">Спорт</button><button class="chip">Для детей</button><button class="chip">Еда</button></div>
+      <div class="hero-search"><label>Что ищем<input id="hero-search-input" placeholder="Концерт, спорт, выставка..."></label><label>Когда<select id="hero-when"><option>Любая дата</option><option>Сегодня</option><option>Завтра</option><option>На выходных</option></select></label><label>Категория<select id="hero-category"><option>Все категории</option><option>Музыка</option><option>Спорт</option><option>Культура</option></select></label><button class="primary-btn" onclick="applyHeroSearch()">Найти события</button></div>
+      <div class="chips" id="home-chips"><button class="chip active" data-cat="">Все события</button><button class="chip" data-cat="Музыка">Музыка</button><button class="chip" data-cat="Культура">Культура</button><button class="chip" data-cat="Спорт">Спорт</button><button class="chip" data-cat="Для детей">Для детей</button><button class="chip" data-cat="Еда">Еда</button></div>
       <div class="section-head"><h2>Скоро начнётся</h2><a href="#" onclick="showScreen('catalog');return false">Все события →</a></div>
       <div class="ribbon-wrap">
         <button class="ghost-btn" id="ribbon-prev" style="padding:7px 10px" aria-label="Прокрутить назад">←</button>
@@ -299,7 +304,7 @@
       </div>
     </div></section>
 
-    <section id="catalog" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Афиша событий</div><h1>Найти своё событие</h1><p>Фильтруйте по дате, категории, району и стоимости.</p></div></div><div class="filter-bar">
+    <section id="catalog" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Афиша событий</div><h1>Найти своё событие</h1><p>Фильтруйте по дате, типу события и площадке.</p></div></div><div class="filter-bar">
       <div class="facet" id="facet-when">
         <button class="facet-btn" data-facet="when">Когда<span class="facet-value" id="when-value">Все время</span><span class="caret">▾</span></button>
         <div class="facet-pop">
@@ -339,13 +344,13 @@
 
     <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn" id="prev-month" style="padding:7px 10px">← Предыдущий</button><h2 id="calendar-month">Август 2026</h2><button class="ghost-btn" id="next-month" style="padding:7px 10px">Следующий →</button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel" style="margin-top:16px;display:none"></div></div></div></section>
 
-    <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" style="width:100%;margin-top:24px" onclick="toast('Событие добавлено в избранное')">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="toast('Спасибо, жалоба отправлена')">Пожаловаться</button></div></div></div></section>
+    <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="toast('Спасибо, жалоба отправлена')">Пожаловаться</button></div></div></div></section>
 
-    <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1>Добавить событие</h1><p>После отправки событие попадёт на проверку модератору.</p></div><span class="status pending">Черновик</span></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input value="Город звучит"></div><div class="field"><label>Категория *</label><select><option>Музыка</option><option>Культура</option><option>Спорт</option></select></div><div class="field"><label>Возрастное ограничение</label><select><option>18+</option><option>12+</option><option>6+</option><option>Без ограничений</option></select></div><div class="field"><label>Дата *</label><input type="date" value="2026-06-22"></div><div class="field"><label>Время начала *</label><input type="time" value="18:00"></div><div class="field"><label>Место *</label><input value="Парк Гагарина"></div><div class="field"><label>Район</label><select><option>Центральный</option><option>Кузнецкий</option></select></div><div class="field full"><label>Адрес *</label><input value="Новокузнецк, парк Гагарина"></div><div class="field full"><label>Описание *</label><textarea>Большой летний фестиваль музыки, локальных проектов и городских историй.</textarea></div><div class="field"><label>Стоимость</label><select><option>Бесплатно</option><option>Платное</option></select></div><div class="field"><label>Ссылка на подробности</label><input placeholder="https://..."></div></div><div class="form-actions"><button class="ghost-btn" onclick="toast('Черновик сохранён')">Сохранить черновик</button><button class="primary-btn" onclick="submitEventFromForm()">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Проверьте дату и время</span></div><div class="check"><i>✓</i><span>Укажите точный адрес</span></div><div class="check"><i>✓</i><span>Добавьте понятное описание</span></div><div class="check"><i>✓</i><span>Не используйте рекламные обещания</span></div></div></aside></div></div></section>
+    <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1 id="form-title">Добавить событие</h1><p id="form-sub">После отправки событие попадёт на проверку модератору.</p></div></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input id="f-title" placeholder="Например, «Город звучит»"></div><div class="field"><label>Категория *</label><select id="f-category"></select></div><div class="field"><label>Стоимость *</label><input id="f-price" placeholder="Бесплатно или от 350 ₽"></div><div class="field"><label>Дата *</label><input id="f-date" type="date"></div><div class="field"><label>Время начала *</label><input id="f-time" type="time"></div><div class="field full"><label>Место *</label><input id="f-venue" placeholder="Парк Гагарина"></div></div><div class="form-actions"><button class="ghost-btn" onclick="cancelEventForm()">Отмена</button><button class="primary-btn" onclick="submitEventFromForm()" id="f-submit">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Событие попадёт на модерацию</span></div><div class="check"><i>✓</i><span>После одобрения появится в каталоге</span></div><div class="check"><i>✓</i><span>Вы сможете редактировать и снимать событие</span></div><div class="check"><i>✓</i><span>Не более 20 предстоящих событий у организатора</span></div></div></aside></div></div></section>
 
     <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Очередь модерации</h1><p>Проверяйте новые события перед публикацией.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px"><button class="chip active">На проверке</button><button class="chip">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div></div></section>
 
-    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><button class="primary-btn" onclick="handleAddEventClick()">+ Добавить событие</button></div><div id="my-events-list" class="my-events-list"></div></div></div></section>
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div style="display:flex;gap:10px;align-items:center"><button class="primary-btn" onclick="handleAddEventClick()">+ Добавить событие</button><button class="ghost-btn" onclick="handleLogout()">Выйти</button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div></div></div></section>
   </main>
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <div class="toast" id="toast"></div>
@@ -399,7 +404,10 @@
       if (name === 'moderation') loadModerationQueue();
     }
 
-    tabs.forEach(t => t.addEventListener('click', () => showScreen(t.dataset.screen)));
+    tabs.forEach(t => t.addEventListener('click', () => {
+      if (t.dataset.screen === 'form') { handleAddEventClick(); return; }
+      showScreen(t.dataset.screen);
+    }));
 
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
@@ -413,9 +421,82 @@
       return new Intl.DateTimeFormat('ru-RU', {day: 'numeric', month: 'long'}).format(new Date(`${value}T00:00:00`));
     }
 
+    // === Избранное (хранится на сервере, привязано к аккаунту) ===
+    const eventsById = {};
+    let favoriteIds = new Set();      // event_id, отмеченные текущим пользователем
+    let favoriteEvents = [];          // полные объекты для вкладки «Избранное»
+    let currentDetailEvent = null;
+
+    function authHeader() { return {'Authorization': `Bearer ${getAccessToken()}`}; }
+
+    async function loadFavorites() {
+      if (!getAccessToken()) { favoriteIds = new Set(); favoriteEvents = []; return; }
+      try {
+        const resp = await fetch(`${API_BASE}/me/favorites`, { headers: authHeader() });
+        if (resp.status === 401) { favoriteIds = new Set(); favoriteEvents = []; return; }
+        if (resp.ok) {
+          const data = await resp.json();
+          favoriteEvents = data.items || [];
+          favoriteIds = new Set(favoriteEvents.map(e => e.event_id));
+        }
+      } catch (e) { /* сеть недоступна */ }
+    }
+
+    function setDetailFavButton(fav) {
+      const db = document.getElementById('detail-fav-btn');
+      if (!db) return;
+      db.classList.toggle('fav', fav);
+      db.innerHTML = fav ? '♡ Удалить из избранного' : '♡ Добавить в избранное';
+    }
+
+    function syncFavoriteUI(id) {
+      const fav = favoriteIds.has(id);
+      document.querySelectorAll(`.event-card .heart[data-fav="${id}"]`).forEach(h => h.classList.toggle('fav', fav));
+      setDetailFavButton(fav);
+    }
+
+    async function performFavoriteToggle(id) {
+      if (!getAccessToken()) { toast('Войдите, чтобы добавлять в избранное'); showScreen('auth'); return; }
+      const fav = favoriteIds.has(id);
+      try {
+        const resp = await fetch(`${API_BASE}/me/favorites/${id}`, {
+          method: fav ? 'DELETE' : 'POST',
+          headers: authHeader(),
+        });
+        if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
+        if (!resp.ok) {
+          const d = await resp.json().catch(() => ({}));
+          throw new Error(d.detail || 'Не удалось обновить избранное');
+        }
+        if (fav) {
+          favoriteIds.delete(id);
+          favoriteEvents = favoriteEvents.filter(e => e.event_id !== id);
+          toast('Удалено из избранного');
+        } else {
+          favoriteIds.add(id);
+          const evt = eventsById[id];
+          if (evt) favoriteEvents.push(evt);
+          toast('Событие добавлено в избранное');
+        }
+        syncFavoriteUI(id);
+        if (cabinetTab === 'fav') renderFavorites();
+      } catch (e) { toast(e.message); }
+    }
+
+    function toggleFavorite(ev, id) {
+      ev.stopPropagation();
+      performFavoriteToggle(id);
+    }
+
+    function toggleDetailFavorite() {
+      if (currentDetailEvent) performFavoriteToggle(currentDetailEvent.event_id);
+    }
+
     function eventCard(event, index) {
+      eventsById[event.event_id] = event;
+      const fav = favoriteIds.has(event.event_id);
       const posterClass = `poster-${(index % 4) + 1}`;
-      return `<article class="event-card" onclick="showEvent('${escapeHtml(event.slug)}')"><div class="poster ${posterClass}"><span class="date-pill">${formatDate(event.date).replace(' ', '<br>')}</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">${escapeHtml(event.title)}</strong></div><div class="card-body"><div class="meta">${escapeHtml(event.date)} · ${escapeHtml(event.time)} · ${escapeHtml(event.venue)}</div><h3>${escapeHtml(event.title)}</h3><div class="card-foot"><span class="${event.price === 'Бесплатно' ? 'free' : ''}">${escapeHtml(event.price)}</span><span>${escapeHtml(event.category)}</span></div></div></article>`;
+      return `<article class="event-card" onclick="showEvent('${escapeHtml(event.slug)}')"><div class="poster ${posterClass}"><span class="date-pill">${formatDate(event.date).replace(' ', '<br>')}</span><button class="heart${fav ? ' fav' : ''}" data-fav="${event.event_id}" onclick="toggleFavorite(event, ${event.event_id})">♡</button><strong class="poster-title">${escapeHtml(event.title)}</strong></div><div class="card-body"><div class="meta">${escapeHtml(event.date)} · ${escapeHtml(event.time)} · ${escapeHtml(event.venue)}</div><h3>${escapeHtml(event.title)}</h3><div class="card-foot"><span class="${event.price === 'Бесплатно' ? 'free' : ''}">${escapeHtml(event.price)}</span><span>${escapeHtml(event.category)}</span></div></div></article>`;
     }
 
     async function fetchEvents(params = {}) {
@@ -789,6 +870,8 @@
         document.querySelector('#detail-date').innerHTML = `${formatLongDate(event.date)}<br>${event.time}`;
         document.querySelector('#detail-venue').innerHTML = `${event.venue}<br>Новокузнецк`;
         document.querySelector('#detail-organizer').textContent = 'Организатор события';
+        currentDetailEvent = event;
+        setDetailFavButton(favoriteIds.has(event.event_id));
         showScreen('detail');
       } catch (error) {
         toast(error.message);
@@ -817,6 +900,38 @@
       if (catalogFilters.search) params.search = catalogFilters.search;
       loadEvents(params, 'catalog');
       if (showToast) toast('Фильтры применены');
+    }
+
+    // Поиск-герой на главной: применяет фильтры и открывает каталог
+    function applyHeroSearch() {
+      const q = document.getElementById('hero-search-input').value.trim();
+      if (q) catalogFilters.search = q; else delete catalogFilters.search;
+      const when = document.getElementById('hero-when').value;
+      const cat = document.getElementById('hero-category').value;
+      catalogFilters.category = (cat && cat !== 'Все категории') ? cat : null;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (when === 'Сегодня') { catalogFilters.dateFrom = iso(today); catalogFilters.dateTo = iso(today); }
+      else if (when === 'Завтра') { const t = new Date(today); t.setDate(t.getDate() + 1); catalogFilters.dateFrom = iso(t); catalogFilters.dateTo = iso(t); }
+      else if (when === 'На выходных') {
+        const dow = (today.getDay() + 6) % 7;
+        const sat = new Date(today); sat.setDate(sat.getDate() + (5 - dow));
+        const sun = new Date(sat); sun.setDate(sun.getDate() + 1);
+        catalogFilters.dateFrom = iso(sat); catalogFilters.dateTo = iso(sun);
+      } else { catalogFilters.dateFrom = null; catalogFilters.dateTo = null; }
+      typeValue.textContent = catalogFilters.category || 'Все';
+      updateWhenLabel();
+      showScreen('catalog');
+    }
+
+    function applyChipFilter(chip) {
+      document.querySelectorAll('#home-chips .chip').forEach(c => c.classList.toggle('active', c === chip));
+      catalogFilters.category = chip.dataset.cat || null;
+      delete catalogFilters.search;
+      catalogFilters.dateFrom = null;
+      catalogFilters.dateTo = null;
+      typeValue.textContent = catalogFilters.category || 'Все';
+      updateWhenLabel();
+      showScreen('catalog');
     }
 
     // Открытие/закрытие фасетов
@@ -997,33 +1112,120 @@
 
     renderTypeList();
     loadVenues();
+    populateFormCategories();
+
+    // Фильтры-чипы на главной
+    document.querySelectorAll('#home-chips .chip').forEach(chip => {
+      chip.addEventListener('click', () => applyChipFilter(chip));
+    });
+
+    // Табы личного кабинета (Мои события / Избранное)
+    document.querySelectorAll('#cabinet-tabs .chip').forEach(t => {
+      t.addEventListener('click', () => setCabinetTab(t.dataset.tab));
+    });
+
+    // === Форма добавления/редактирования события ===
+    let editingEventId = null; // null = создание, число = редактирование
+
+    function populateFormCategories() {
+      const select = document.getElementById('f-category');
+      if (!select) return;
+      select.innerHTML = CATEGORIES.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+    function openCreateForm() {
+      editingEventId = null;
+      document.getElementById('form-title').textContent = 'Добавить событие';
+      document.getElementById('form-sub').textContent = 'После отправки событие попадёт на проверку модератору.';
+      document.getElementById('f-submit').textContent = 'Отправить на проверку';
+      const now = new Date();
+      document.getElementById('f-title').value = '';
+      document.getElementById('f-category').value = CATEGORIES[0];
+      document.getElementById('f-price').value = '';
+      document.getElementById('f-date').value = iso(now);
+      document.getElementById('f-time').value = '18:00';
+      document.getElementById('f-venue').value = '';
+      showScreen('form');
+    }
+
+    function openEditForm(event) {
+      editingEventId = event.event_id;
+      document.getElementById('form-title').textContent = 'Редактировать событие';
+      document.getElementById('form-sub').textContent = 'Внесите изменения и сохраните — событие обновится в кабинете.';
+      document.getElementById('f-submit').textContent = 'Сохранить изменения';
+      document.getElementById('f-title').value = event.title;
+      document.getElementById('f-category').value = event.category;
+      document.getElementById('f-price').value = event.price;
+      document.getElementById('f-date').value = event.date;
+      document.getElementById('f-time').value = event.time;
+      document.getElementById('f-venue').value = event.venue;
+      showScreen('form');
+    }
+
+    function cancelEventForm() {
+      editingEventId = null;
+      showScreen('auth');
+    }
 
     async function submitEventFromForm() {
-      const fields = document.querySelectorAll('#form .form-grid .field');
-      const value = index => fields[index].querySelector('input, select, textarea').value;
       const payload = {
-        title: value(0),
-        slug: `event-${Date.now()}`,
-        category: value(1),
-        date: value(3),
-        time: value(4),
-        venue: value(5),
-        price: value(9),
+        title: document.getElementById('f-title').value.trim(),
+        category: document.getElementById('f-category').value,
+        date: document.getElementById('f-date').value,
+        time: document.getElementById('f-time').value,
+        venue: document.getElementById('f-venue').value.trim(),
+        price: document.getElementById('f-price').value.trim(),
       };
+      if (!payload.title || !payload.date || !payload.time || !payload.venue || !payload.price) {
+        toast('Заполните все обязательные поля');
+        return;
+      }
+      const isEdit = editingEventId != null;
+      const url = isEdit ? `${API_BASE}/me/events/${editingEventId}` : `${API_BASE}/events`;
+      const headers = {'Content-Type': 'application/json'};
+      const access = getAccessToken();
+      if (access) headers['Authorization'] = `Bearer ${access}`;
+      if (!isEdit) payload.slug = `event-${Date.now()}`;
       try {
-        const headers = {'Content-Type': 'application/json'};
-        const access = getAccessToken();
-        if (access) headers['Authorization'] = `Bearer ${access}`;
-        const response = await fetch(`${API_BASE}/events`, {
-          method: 'POST',
+        const response = await fetch(url, {
+          method: isEdit ? 'PATCH' : 'POST',
           headers,
           body: JSON.stringify(payload),
         });
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (response.status === 401) { toast('Нужно войти, чтобы добавлять события'); showScreen('auth'); return; }
         if (response.status === 403) { toast('Недостаточно прав: требуется роль организатора или админа'); return; }
-        if (!response.ok) throw new Error(data.detail || 'Не удалось отправить событие');
-        toast(`Событие отправлено на модерацию: ${data.title}`);
+        if (!response.ok) throw new Error(data.detail || 'Не удалось сохранить событие');
+        toast(isEdit ? 'Изменения сохранены' : `Событие отправлено на модерацию: ${data.title}`);
+        editingEventId = null;
+        showScreen('auth');
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    function openEditEvent(id) {
+      const event = myEventsCache.find(e => e.event_id === id);
+      if (event) openEditForm(event);
+      else toast('Событие не найдено');
+    }
+
+    async function deleteEvent(id) {
+      const event = myEventsCache.find(e => e.event_id === id);
+      const title = event ? event.title : '';
+      if (!confirm(`Удалить событие «${title}»? Это действие нельзя отменить.`)) return;
+      try {
+        const resp = await fetch(`${API_BASE}/me/events/${id}`, {
+          method: 'DELETE',
+          headers: {'Authorization': `Bearer ${getAccessToken()}`},
+        });
+        if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.detail || 'Не удалось удалить событие');
+        }
+        toast('Событие удалено');
+        await loadMyEvents();
       } catch (error) {
         toast(error.message);
       }
@@ -1048,6 +1250,8 @@
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem('afisha_refresh_token');
       localStorage.removeItem(USER_KEY);
+      favoriteIds = new Set();
+      favoriteEvents = [];
       renderAuthState();
     }
     function currentRole() { return (getStoredUser() || {}).role; }
@@ -1062,7 +1266,7 @@
       const navUser = document.getElementById('nav-user');
       if (navUser) {
         if (user) {
-          navUser.innerHTML = `<button class="user-chip" onclick="handleLogout()" title="Выйти">${escapeHtml(user.full_name || user.email)}<span class="role">${escapeHtml(user.role)}</span><span style="color:var(--muted)">✕</span></button>`;
+          navUser.innerHTML = `<button class="user-chip" onclick="showScreen('auth')" title="Личный кабинет">${escapeHtml(user.full_name || user.email)}<span class="role">${escapeHtml(user.role)}</span></button>`;
         } else {
           navUser.innerHTML = `<button class="ghost-btn" onclick="showScreen('auth')">Войти</button>`;
         }
@@ -1075,7 +1279,7 @@
         toast(`Ваша роль — «${currentRole() || 'посетитель'}». Добавлять события могут организаторы и админы.`);
         return;
       }
-      showScreen('form');
+      openCreateForm();
     }
 
     // === Кабинет организатора ===
@@ -1085,6 +1289,7 @@
     function statusLabel(status) {
       return ({pending_moderation: 'На проверке', published: 'Опубликовано', rejected: 'Отклонено', draft: 'Снято с публикации'})[status] || status;
     }
+    let cabinetTab = 'my';
     function renderCabinet() {
       const user = getStoredUser();
       const layout = document.getElementById('auth-layout');
@@ -1092,10 +1297,40 @@
       if (!user) { layout.style.display = ''; cabinet.style.display = 'none'; return; }
       layout.style.display = 'none';
       cabinet.style.display = '';
-      document.getElementById('cabinet-title').textContent = 'Мои события';
       document.getElementById('cabinet-sub').textContent = `${user.full_name || user.email} · роль ${user.role}`;
-      loadMyEvents();
+      const canCreate = user.role === 'organizer' || user.role === 'admin';
+      const myTab = document.querySelector('#cabinet-tabs [data-tab="my"]');
+      if (myTab) myTab.style.display = canCreate ? '' : 'none';
+      if (!canCreate && cabinetTab === 'my') cabinetTab = 'fav';
+      setCabinetTab(cabinetTab || 'my');
     }
+    function setCabinetTab(tab) {
+      cabinetTab = tab;
+      document.querySelectorAll('#cabinet-tabs .chip').forEach(c => c.classList.toggle('active', c.dataset.tab === tab));
+      document.getElementById('my-events-list').style.display = tab === 'my' ? '' : 'none';
+      document.getElementById('favorites-list').style.display = tab === 'fav' ? '' : 'none';
+      document.getElementById('cabinet-title').textContent = tab === 'my' ? 'Мои события' : 'Избранное';
+      if (tab === 'my') loadMyEvents();
+      else renderFavorites();
+    }
+    function renderFavorites() {
+      const list = document.getElementById('favorites-list');
+      const favs = favoriteEvents;
+      if (!favs.length) { list.innerHTML = '<div class="my-events-empty">В избранном пока пусто — отмечайте события сердечком на карточках.</div>'; return; }
+      list.innerHTML = favs.map(e => `
+    <div class="my-event">
+      <div><div class="me-title">${escapeHtml(e.title)}</div>
+        <div class="me-meta">${escapeHtml(e.category)} · ${formatDate(e.date)} ${e.time} · ${escapeHtml(e.venue)}</div></div>
+      <div class="me-actions">
+        <button class="mini-btn" onclick="showEvent('${escapeHtml(e.slug)}')">Открыть</button>
+        <button class="mini-btn danger" onclick="removeFavorite(${e.event_id})">Убрать</button>
+      </div>
+    </div>`).join('');
+    }
+    function removeFavorite(id) {
+      performFavoriteToggle(id);
+    }
+    let myEventsCache = [];
     async function loadMyEvents() {
       const token = getAccessToken();
       if (!token) return;
@@ -1105,6 +1340,7 @@
         if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить события');
+        myEventsCache = data.items;
         if (!data.items.length) { list.innerHTML = '<div class="my-events-empty">Пока нет событий…</div>'; return; }
         list.innerHTML = data.items.map(e => `
     <div class="my-event">
@@ -1115,6 +1351,8 @@
         <span class="status ${statusClass(e.status)}">${statusLabel(e.status)}</span>
         ${e.status === 'published' ? `<button class="mini-btn" onclick="togglePublish(${e.event_id}, 'unpublish')">Снять с публикации</button>` : ''}
         ${e.status === 'draft' ? `<button class="mini-btn primary" onclick="togglePublish(${e.event_id}, 'publish')">Опубликовать</button>` : ''}
+        <button class="mini-btn" onclick="openEditEvent(${e.event_id})">Редактировать</button>
+        <button class="mini-btn danger" onclick="deleteEvent(${e.event_id})">Удалить</button>
       </div>
     </div>`).join('');
       } catch (error) {
@@ -1276,6 +1514,7 @@
         if (!meResp.ok) throw new Error('Не удалось загрузить профиль');
         const me = await meResp.json();
         setSession(data.access_token, data.refresh_token, me);
+        await loadFavorites();
         toast(`Добро пожаловать, ${me.full_name || me.email}!`);
         showScreen('home');
       } catch (error) {
@@ -1307,6 +1546,7 @@
         });
         if (resp.ok) {
           setSession(access, localStorage.getItem('afisha_refresh_token'), await resp.json());
+          await loadFavorites();
         } else {
           clearSession();
         }
