@@ -5,12 +5,13 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from .db import Base, build_engine, build_session_factory, session_dependency
-from .models import Event, Favorite, User
+from .models import Event, Favorite, Notification, User
 from .auth import build_auth_routes
+from .notifications import generate_reminders, notify_users, staff_ids
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -167,6 +168,18 @@ def create_app(
         session.add(event)
         session.commit()
         session.refresh(event)
+        notify_users(
+            session,
+            staff_ids(session),
+            kind="event_created",
+            title="Новое событие на модерации",
+            text=(
+                f"Организатор {current_user.full_name} создал событие "
+                f"«{event.title}» и отправил его на модерацию."
+            ),
+            event_id=event.id,
+        )
+        session.commit()
         return serialize_event(event)
 
     @app.get("/api/v1/events")
@@ -321,6 +334,17 @@ def create_app(
             setattr(event, field, value)
         session.commit()
         session.refresh(event)
+        notify_users(
+            session,
+            staff_ids(session),
+            kind="event_updated",
+            title="Событие изменено",
+            text=(
+                f"Организатор {current_user.full_name} изменил событие «{event.title}»."
+            ),
+            event_id=event.id,
+        )
+        session.commit()
         return serialize_event(event)
 
     @app.delete("/api/v1/me/events/{event_id}", status_code=204)
@@ -374,6 +398,18 @@ def create_app(
         event.moderation_note = None
         session.commit()
         session.refresh(event)
+        notify_users(
+            session,
+            staff_ids(session),
+            kind="event_resubmitted",
+            title="Событие на повторной проверке",
+            text=(
+                f"Организатор {current_user.full_name} повторно отправил событие "
+                f"«{event.title}» на модерацию."
+            ),
+            event_id=event.id,
+        )
+        session.commit()
         return serialize_event(event)
 
     # --- Избранное (привязка к аккаунту) ---
@@ -470,6 +506,28 @@ def create_app(
             event.moderation_note = None
         session.commit()
         session.refresh(event)
+        if payload.decision == "reject":
+            notify_users(
+                session,
+                [event.organizer_id],
+                kind="event_rejected",
+                title="Событие отклонено",
+                text=(
+                    f"Событие «{event.title}» не прошло модерацию. "
+                    f"Причина: {event.moderation_note or 'не указана'}."
+                ),
+                event_id=event.id,
+            )
+        else:
+            notify_users(
+                session,
+                [event.organizer_id],
+                kind="event_approved",
+                title="Событие опубликовано",
+                text=f"Событие «{event.title}» одобрено модератором и опубликовано.",
+                event_id=event.id,
+            )
+        session.commit()
         return serialize_event(event)
 
     # --- Модераторский контроль над событиями (любые статусы) ---
@@ -543,6 +601,18 @@ def create_app(
         event.moderation_note = payload.reason.strip()
         session.commit()
         session.refresh(event)
+        notify_users(
+            session,
+            [event.organizer_id],
+            kind="event_unpublished",
+            title="Событие снято с публикации",
+            text=(
+                f"Модератор снял с публикации событие «{event.title}». "
+                f"Причина: {event.moderation_note}."
+            ),
+            event_id=event.id,
+        )
+        session.commit()
         return serialize_event(event)
 
     # --- Админка: управление пользователями и ролями (Этап 4) ---
@@ -587,6 +657,100 @@ def create_app(
         session.commit()
         session.refresh(target)
         return serialize_admin_user(target)
+
+    # --- Уведомления в личный кабинет ---
+    def serialize_notification(
+        n: Notification, event_slug: str | None = None
+    ) -> dict[str, object]:
+        return {
+            "id": n.id,
+            "kind": n.kind,
+            "title": n.title,
+            "text": n.text,
+            "event_id": n.event_id,
+            "event_slug": event_slug,
+            "is_read": n.is_read,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+
+    @app.get("/api/v1/me/notifications")
+    def my_notifications(
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> dict[str, object]:
+        generate_reminders(session, current_user.id)
+        statement = (
+            select(Notification)
+            .where(Notification.user_id == current_user.id)
+            .order_by(Notification.created_at.desc(), Notification.id.desc())
+        )
+        notifications = session.scalars(statement).all()
+        # slug для перехода на карточку события (одним запросом, без N+1).
+        event_ids = {n.event_id for n in notifications if n.event_id is not None}
+        slugs = {}
+        if event_ids:
+            slugs = dict(
+                session.execute(
+                    select(Event.id, Event.slug).where(Event.id.in_(event_ids))
+                ).all()
+            )
+        return {
+            "items": [
+                serialize_notification(n, slugs.get(n.event_id)) for n in notifications
+            ],
+            "total": len(notifications),
+        }
+
+    @app.get("/api/v1/me/notifications/unread-count")
+    def unread_notifications_count(
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> dict[str, int]:
+        generate_reminders(session, current_user.id)
+        count = session.scalar(
+            select(func.count())
+            .select_from(Notification)
+            .where(
+                Notification.user_id == current_user.id,
+                Notification.is_read.is_(False),
+            )
+        ) or 0
+        return {"count": count}
+
+    @app.patch("/api/v1/me/notifications/{notification_id}/read")
+    def mark_notification_read(
+        notification_id: int,
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> dict[str, object]:
+        notification = session.get(Notification, notification_id)
+        if notification is None or notification.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Notification not found")
+        notification.is_read = True
+        session.commit()
+        session.refresh(notification)
+        slug = (
+            session.scalar(select(Event.slug).where(Event.id == notification.event_id))
+            if notification.event_id is not None
+            else None
+        )
+        return serialize_notification(notification, slug)
+
+    @app.post("/api/v1/me/notifications/read-all")
+    def mark_all_notifications_read(
+        session: Session = Depends(get_session),
+        current_user: User = Depends(get_current_user),
+    ) -> dict[str, str]:
+        session.execute(
+            update(Notification)
+            .where(
+                Notification.user_id == current_user.id,
+                Notification.is_read.is_(False),
+            )
+            .values(is_read=True)
+        )
+        session.commit()
+        return {"status": "ok"}
 
     return app
 
