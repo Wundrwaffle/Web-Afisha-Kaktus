@@ -170,6 +170,12 @@
     .panel h3 + .mini-list, .panel h4.day-group-title + .mini-list { margin-top: 0; }
     .mini-item strong { display: block; font: 700 14px Montserrat; margin-bottom: 4px; }
     .mini-item span { color: var(--muted); font-size: 12px; }
+    /* Панель событий дня/периода. Отступы — не «на глаз»: сверху нужно больше
+       ленточного ритма (.ribbon-wrap отдаёт 18px), иначе карточка дня читается
+       продолжением ленты дат; снизу 30px — тот же шаг, что у .section-head, чтобы
+       строки дня не слипались с сеткой всех событий (было 0px). */
+    .day-events-panel { display: none; margin: 20px 0 30px; }
+    .day-events-panel.is-open { display: flex; }
     .detail-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 28px; }
     .detail-poster { height: 450px; border-radius: 24px; background: linear-gradient(135deg, #cb4d38, #f4bb5c 46%, #0b1a33); position: relative; overflow: hidden; display: flex; align-items: end; padding: 32px; color: #fff; }
     .detail-poster:after { content: attr(data-title); position: relative; z-index: 1; font: 800 clamp(34px, 6vw, 76px)/.9 Montserrat; max-width: 600px; }
@@ -334,7 +340,7 @@
         <button class="ghost-btn" id="ribbon-next" style="padding:7px 10px" aria-label="Прокрутить вперёд">→</button>
         <button class="ghost-btn" id="ribbon-dots-toggle" style="padding:7px 10px" title="Показать/скрыть точки событий">●</button>
       </div>
-      <div id="home-calendar-day-events" class="panel" style="display:none;margin-top:4px"></div>
+      <div id="home-calendar-day-events" class="panel day-events-panel"></div>
       <div class="events-grid">
         <article class="event-card" onclick="showScreen('detail')"><div class="poster poster-1"><span class="date-pill">22<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Летний фестиваль</strong></div><div class="card-body"><div class="meta">СБ · 18:00 · Парк Гагарина</div><h3>Город звучит</h3><div class="card-foot"><span class="free">Бесплатно</span><span>18+</span></div></div></article>
         <article class="event-card"><div class="poster poster-2"><span class="date-pill">23<br>ИЮНЯ</span><button class="heart" onclick="event.stopPropagation();toast('Событие добавлено в избранное')">♡</button><strong class="poster-title">Кино под открытым небом</strong></div><div class="card-body"><div class="meta">ВС · 21:30 · Площадь Побед</div><h3>Большой экран</h3><div class="card-foot"><span>от 350 ₽</span><span>12+</span></div></div></article>
@@ -381,7 +387,7 @@
       </div>
     </div><div class="section-head"><h2>48 событий</h2></div><div class="events-grid"></div></div></section>
 
-    <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn" id="prev-month" style="padding:7px 10px">← Предыдущий</button><h2 id="calendar-month">Август 2026</h2><button class="ghost-btn" id="next-month" style="padding:7px 10px">Следующий →</button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel" style="margin-top:16px;display:none"></div></div></div></section>
+    <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn" id="prev-month" style="padding:7px 10px">← Предыдущий</button><h2 id="calendar-month">Август 2026</h2><button class="ghost-btn" id="next-month" style="padding:7px 10px">Следующий →</button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel day-events-panel"></div></div></div></section>
 
     <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="toast('Спасибо, жалоба отправлена')">Пожаловаться</button></div></div></div></section>
 
@@ -446,11 +452,27 @@
       sort: 'date',
     };
 
+    // Возврат на «Главную» обязан быть чистым: выбранный в ленте период, подсветка
+    // и открытая панель дня не должны переезжать из прошлого захода (баг: клик по
+    // логотипу/«Главной» после админки оставлял выбранное 18 сентября).
+    function resetHomeDaySelection() {
+      rangeStart = null;
+      appliedRange = null;
+      const panel = document.getElementById('home-calendar-day-events');
+      panel.classList.remove('is-open');
+      panel.innerHTML = '';
+      updateRangeHighlight();
+    }
+
     function showScreen(name) {
       screens.forEach(s => s.classList.toggle('active', s.id === name));
       tabs.forEach(t => t.classList.toggle('active', t.dataset.screen === name));
       window.scrollTo({top: 0, behavior: 'smooth'});
-      if (name === 'home') loadEvents({});
+      if (name === 'home') {
+        resetHomeDaySelection();
+        loadHomeCalendarStrip();
+        loadEvents({});
+      }
       if (name === 'catalog') applyCatalogFilters();
       if (name === 'calendar') loadCalendar();
       if (name === 'auth') renderCabinet();
@@ -679,7 +701,7 @@
       const dates = Object.keys(byDate).sort();
       const total = events.length;
 
-      container.style.display = 'block';
+      container.classList.add('is-open');
       container.innerHTML =
         (total ? '' : '<h3>На выбранные даты событий нет</h3>') +
         dates.map(dateStr => {
@@ -785,8 +807,12 @@
         const d = c.dataset.date;
         const isStart = rangeStart !== null && d === rangeStart;
         const inApplied = appliedRange !== null && d >= appliedRange.from && d <= appliedRange.to;
-        c.classList.toggle('selected', isStart);
-        c.classList.toggle('in-range', !isStart && inApplied);
+        // День, выбранный одиночным интервалом (from === to), подсвечиваем акцентом,
+        // а не серым «в диапазоне»: серый чип теряется среди дат, и период выглядит
+        // как неснятая подсветка (жалоба «лента осталась выбранной»).
+        const isSingle = inApplied && appliedRange.from === appliedRange.to;
+        c.classList.toggle('selected', isStart || isSingle);
+        c.classList.toggle('in-range', !isStart && inApplied && !isSingle);
       });
     }
 
@@ -904,13 +930,13 @@
     document.getElementById('prev-month')?.addEventListener('click', () => {
       currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
       loadCalendar();
-      document.getElementById('calendar-day-events').style.display = 'none';
+      document.getElementById('calendar-day-events').classList.remove('is-open');
     });
 
     document.getElementById('next-month')?.addEventListener('click', () => {
       currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
       loadCalendar();
-      document.getElementById('calendar-day-events').style.display = 'none';
+      document.getElementById('calendar-day-events').classList.remove('is-open');
     });
 
     async function showEvent(slug) {
