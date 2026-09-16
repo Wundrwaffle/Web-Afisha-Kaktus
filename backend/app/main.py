@@ -1,9 +1,11 @@
+import os
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
@@ -11,11 +13,24 @@ from sqlalchemy.orm import Session
 from .db import Base, build_engine, build_session_factory, session_dependency
 from .models import Event, Favorite, Notification, User
 from .auth import build_auth_routes
+from .exposure import (
+    CONTENT_SECURITY_POLICY,
+    GATE_EXEMPT_PATHS,
+    BasicGateMiddleware,
+    LoginRateLimiter,
+    SecurityHeadersMiddleware,
+    SlidingWindowLimiter,
+    env_flag,
+)
 from .notifications import generate_reminders, notify_users, staff_ids
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATABASE_URL = f"sqlite:///{PROJECT_ROOT / 'afisha.sqlite3'}"
+# Путь к БД переопределяется окружением: публичный показ работает на копии базы
+# (см. backend/expose.py), чтобы тестовые данные не смешивались с рабочими.
+DEFAULT_DATABASE_URL = (
+    os.environ.get("AFISHA_DATABASE_URL") or f"sqlite:///{PROJECT_ROOT / 'afisha.sqlite3'}"
+)
 
 # Демо-события датируются ОТНОСИТЕЛЬНО сегодняшнего дня (в будущем), иначе со
 # временем они «устаревают» и публичный каталог (date_from = today) их не отдаёт.
@@ -83,7 +98,22 @@ def seed_demo_events(session: Session) -> None:
 def create_app(
     database_url: str = DEFAULT_DATABASE_URL,
     max_events_per_organizer: int = 20,
+    *,
+    public_mode: bool | None = None,
+    serve_static: bool | None = None,
+    gate_user: str | None = None,
+    gate_password: str | None = None,
 ) -> FastAPI:
+    # Параметры публичного режима: явный аргумент (удобно в тестах) или окружение.
+    if public_mode is None:
+        public_mode = env_flag("AFISHA_PUBLIC_MODE")
+    if serve_static is None:
+        serve_static = env_flag("AFISHA_SERVE_STATIC")
+    if gate_user is None:
+        gate_user = os.environ.get("AFISHA_GATE_USER", "afisha")
+    if gate_password is None:
+        gate_password = os.environ.get("AFISHA_GATE_PASSWORD") or None
+
     engine = build_engine(database_url)
     Base.metadata.create_all(engine)
 
@@ -112,14 +142,41 @@ def create_app(
     app = FastAPI(
         title="чтоунастамзавтра API",
         version="0.2.0",
+        # В публичном режиме Swagger/OpenAPI закрыты: незачем публиковать карту
+        # API и схемы всем, у кого есть ссылка.
+        docs_url=None if public_mode else "/docs",
+        redoc_url=None if public_mode else "/redoc",
+        openapi_url=None if public_mode else "/openapi.json",
     )
+    if public_mode:
+        # Публичная версия отдаётся с одного origin (страницу отдаёт сам бэкенд),
+        # поэтому кросс-доменный доступ браузера не нужен и закрывается целиком.
+        allow_origins: list[str] = []
+        allow_origin_regex = None
+    else:
+        allow_origins = [
+            "http://127.0.0.1:4173",
+            "http://localhost:4173",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "null",
+        ]
+        allow_origin_regex = r"https?://(127\.0\.0\.1|localhost|192\.168\.\d+\.\d+)(:\d+)?$"
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:4173", "http://localhost:4173", "http://localhost:8080", "http://127.0.0.1:8080", "null"],
-        allow_origin_regex=r"https?://(127\.0\.0\.1|localhost|192\.168\.\d+\.\d+)(:\d+)?$",
+        allow_origins=allow_origins,
+        allow_origin_regex=allow_origin_regex,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["*"],
+    )
+
+    # Лимиты на подбор пароля и на массовую регистрацию — общие для всего процесса.
+    login_limiter = LoginRateLimiter()
+    register_limiter = SlidingWindowLimiter(
+        limit=20,
+        window_seconds=600,
+        message="Слишком много регистраций с этого адреса. Повторите позже.",
     )
 
     def get_session():
@@ -128,7 +185,11 @@ def create_app(
     with session_factory() as session:
         seed_demo_events(session)
 
-    auth = build_auth_routes(session_factory)
+    auth = build_auth_routes(
+        session_factory,
+        login_limiter=login_limiter,
+        register_limiter=register_limiter,
+    )
     app.include_router(auth["router"])
     get_current_user = auth["get_current_user"]
     require_role = auth["require_role"]
@@ -751,6 +812,28 @@ def create_app(
         )
         session.commit()
         return {"status": "ok"}
+
+    # Порядок важен: последний добавленный middleware оказывается самым внешним.
+    # Заголовки безопасности оборачивают всё, включая ответ 401 от гейта.
+    if gate_password:
+        app.add_middleware(
+            BasicGateMiddleware,
+            username=gate_user,
+            password=gate_password,
+            exempt_paths=GATE_EXEMPT_PATHS,
+        )
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        content_security_policy=CONTENT_SECURITY_POLICY if public_mode else None,
+    )
+
+    if serve_static:
+        # Публичный показ отдаёт фронтенд тем же приложением: один адрес вместо
+        # двух, нет CORS и нет второго туннеля. Монтируется последним, чтобы не
+        # перекрывать маршруты API.
+        site_dir = PROJECT_ROOT / "docs"
+        if site_dir.is_dir():
+            app.mount("/", StaticFiles(directory=str(site_dir), html=True), name="site")
 
     return app
 

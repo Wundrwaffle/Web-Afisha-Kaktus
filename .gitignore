@@ -170,5 +170,9 @@ build/
 # Session handoff (local, not for repo)
 report.md
 
+# Публичный показ: локальные секреты, приглашение и скачанный cloudflared
+.secrets/
+.tools/
+
 # Telegram scratch file (local runtime artifact)
 tg.txt
