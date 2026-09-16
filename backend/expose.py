@@ -19,12 +19,21 @@
 
 Запуск:  python backend/expose.py            (или expose.bat двойным щелчком)
 Опции:   --no-tunnel (только локально/LAN), --port 8000, --fresh-db,
-         --lan (слушать 0.0.0.0 и показать адрес в сети)
+         --lan (слушать 0.0.0.0 и показать адрес в сети),
+         --stop (погасить хвосты прошлого показа и освободить порт)
+
+Самолечение при повторном запуске (иначе «одна кнопка» ломается):
+  * порт занят нашим же процессом показа (окно закрыли крестиком) — гасим его,
+  * порт занят чужим процессом — не трогаем, говорим и просим другой порт,
+  * проверяем, что на порту отвечает именно наш сервер В ПУБЛИЧНОМ режиме
+    (health 200, /openapi.json 404, сайт 401) — иначе показ наружу не поднимаем,
+  * упавший туннель поднимаем заново и перевыпускаем приглашение с новым адресом.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import secrets
@@ -45,6 +54,7 @@ ENV_FILE = SECRETS_DIR / "expose.env"
 INVITE_FILE = SECRETS_DIR / "invite.txt"
 PUBLIC_DB = SECRETS_DIR / "public-afisha.sqlite3"
 TOOLS_DIR = PROJECT_ROOT / ".tools"
+PID_FILE = SECRETS_DIR / "expose.pids"
 CLOUDFLARED = TOOLS_DIR / "cloudflared.exe"
 CLOUDFLARED_URL = (
     "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
@@ -123,8 +133,18 @@ def ensure_secrets() -> dict[str, str]:
 # --- база и демо-аккаунты ---------------------------------------------------
 
 
+def human_age(seconds: float) -> str:
+    minutes = int(seconds // 60)
+    if minutes < 60:
+        return f"{minutes} мин"
+    hours = minutes // 60
+    return f"{hours} ч" if hours < 24 else f"{hours // 24} дн"
+
+
 def ensure_public_db(fresh: bool) -> Path:
     if PUBLIC_DB.exists() and not fresh:
+        age = human_age(time.time() - PUBLIC_DB.stat().st_mtime)
+        print(f"  используется прежняя копия (сделана {age} назад; expose.bat fresh — обновить)")
         return PUBLIC_DB
     SECRETS_DIR.mkdir(parents=True, exist_ok=True)
     for candidate in (PROJECT_ROOT / "afisha.sqlite3", BACKEND_DIR / "afisha.sqlite3"):
@@ -339,6 +359,224 @@ def check_from_outside(
     return anonymous_ok, authorized_ok
 
 
+# --- порт, свои процессы, самопроверка --------------------------------------
+
+
+def _run(command: list[str]) -> str:
+    try:
+        done = subprocess.run(
+            command, capture_output=True, text=True, timeout=25, encoding="utf-8", errors="replace"
+        )
+        return done.stdout or ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def port_is_busy(port: int, host: str = "127.0.0.1") -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(1.0)
+        return sock.connect_ex((host, port)) == 0
+
+
+def listener_pid(port: int) -> int | None:
+    """PID процесса, слушающего порт (netstat -ano: последний столбец — PID)."""
+    for line in _run(["netstat", "-ano", "-p", "TCP"]).splitlines():
+        fields = line.split()
+        if len(fields) >= 5 and fields[1].endswith(f":{port}") and fields[-1].isdigit():
+            return int(fields[-1])
+    return None
+
+
+def process_alive(pid: int) -> bool:
+    """Есть ли процесс с таким PID.
+
+    При отсутствии процесса tasklist печатает «INFO: No tasks are running…» —
+    не пустую строку. Наивная проверка «вывод непустой» всегда возвращала True,
+    и код пытался убить уже мёртвый PID, а потом сообщал о неудаче.
+    """
+    if not pid:
+        return False
+    output = _run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"]).strip()
+    if not output.startswith('"'):
+        return False
+    fields = output.splitlines()[0].split(",")
+    return len(fields) > 1 and fields[1].strip('"').strip() == str(pid)
+
+
+def process_name(pid: int) -> str:
+    output = _run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"]).strip()
+    if not output.startswith('"'):
+        return ""
+    return output.splitlines()[0].split(",")[0].strip('" \r\n').lower()
+
+
+def kill_process(pid: int) -> bool:
+    _run(["taskkill", "/PID", str(pid), "/F", "/T"])
+    for _ in range(12):
+        if not process_alive(pid):
+            return True
+        time.sleep(0.3)
+    return False
+
+
+def stop_process_tree(process: subprocess.Popen) -> None:
+    """Гасит процесс вместе с потомками.
+
+    Ловушка Windows: `python.exe` из venv, созданного uv, — лаунчер-трамплин,
+    он порождает реальный интерпретатор дочерним процессом. terminate() по PID
+    лаунчера оставляет сервер живым держать порт (ловушка «зомби» наоборот:
+    показ вроде остановлен, а health отвечает старый процесс).
+    """
+    if process.poll() is not None:
+        return
+    kill_process(process.pid)  # taskkill /F /T — вместе с потомками
+    if process.poll() is None:
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+
+# Процессы, которые заводит сам показ. Чужие на порту не трогаем.
+OUR_PROCESSES = ("python.exe", "python3.exe", "py.exe", "uvicorn.exe", "cloudflared.exe")
+
+
+def save_pids(**pids: int | None) -> None:
+    data = {key: pid for key, pid in pids.items() if pid}
+    SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+    PID_FILE.write_text(json.dumps(data), encoding="utf-8")
+
+
+def cleanup_own_processes() -> None:
+    """Гасит хвосты прошлого показа.
+
+    Если окно закрыли крестиком, дочерние процессы (uvicorn, cloudflared)
+    остаются жить: они держат порт, новый сервер не может встать, а health
+    бодро отвечает 200 от СТАРОГО процесса — и показ уходит другу со старым
+    кодом. Ловим их по файлу с PID.
+    """
+    if not PID_FILE.exists():
+        return
+    try:
+        data = json.loads(PID_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    for name, pid in (data or {}).items():
+        if not isinstance(pid, int) or not process_alive(pid):
+            continue
+        # PID мог быть переиспользован системой — гасим только процессы нашего вида.
+        if process_name(pid) not in OUR_PROCESSES:
+            continue
+        if kill_process(pid):
+            print(f"  остановлен прежний процесс показа: {name} (pid {pid})")
+        else:
+            print(f"  не удалось остановить {name} (pid {pid}) — закройте его вручную")
+    PID_FILE.unlink(missing_ok=True)
+
+
+def free_port(port: int) -> bool:
+    """Проверяет, что порт свободен; свой процесс показа — убирает, чужой — не трогает."""
+    if not port_is_busy(port):
+        return True
+    pid = listener_pid(port)
+    name = process_name(pid) if pid else ""
+    if pid and name in OUR_PROCESSES:
+        print(f"  порт {port} занят нашим процессом {name} (pid {pid}) — останавливаю")
+        kill_process(pid)
+        for _ in range(20):
+            if not port_is_busy(port):
+                return True
+            time.sleep(0.5)
+    who = name or "неизвестный процесс"
+    print(f"  порт {port} занят: {who}" + (f", pid {pid}" if pid else ""))
+    print(f"  закройте его или запустите показ на другом порту: expose.bat <порт>")
+    return False
+
+
+def check_local_public_mode(port: int, gate_user: str, gate_password: str) -> bool:
+    """Проверяет, что на порту наш сервер В ПУБЛИЧНОМ режиме.
+
+    Признаки публичного режима: health — 200 (кроме гейта), корень сайта
+    анонимно — 401, /openapi.json С ПАРОЛЕМ ГЕЙТА — 404 (Swagger выключен в
+    приложении). Без пароля /openapi.json отдаёт 401: гейт отвечает раньше
+    маршрутизации, поэтому анонимное ожидание 404 давало ложную тревогу
+    «Swagger открыт» и блокировало показ на живом сервере.
+    """
+    import base64  # noqa: PLC0415
+
+    credentials = base64.b64encode(f"{gate_user}:{gate_password}".encode()).decode()
+
+    def status(path: str, headers: dict[str, str] | None = None) -> int:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}{path}", headers=headers or {}
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                return response.status
+        except urllib.error.HTTPError as error:
+            return error.code
+        except OSError:
+            return 0
+
+    health = status("/api/v1/health")
+    root = status("/")
+    openapi_anonymous = status("/openapi.json")
+    openapi_authorized = status("/openapi.json", {"Authorization": f"Basic {credentials}"})
+    print(f"  health: {health} {'(ок)' if health == 200 else '(ПЛОХО)'}")
+    print(
+        f"  сайт анонимно: {root} "
+        f"{'(ок — под гейтом)' if root == 401 else '(ПЛОХО — открыт!)'}"
+    )
+    print(
+        f"  /openapi.json анонимно: {openapi_anonymous} "
+        f"{'(ок — гейт закрыл)' if openapi_anonymous == 401 else '(ПЛОХО — доступен!)'}"
+    )
+    print(
+        f"  /openapi.json с паролем: {openapi_authorized} "
+        f"{'(ок — выключен)' if openapi_authorized == 404 else '(ПЛОХО — открыт!)'}"
+    )
+    return (
+        health == 200
+        and root == 401
+        and openapi_anonymous == 401
+        and openapi_authorized == 404
+    )
+
+
+def copy_to_clipboard(text_file: Path) -> bool:
+    """Кладёт приглашение в буфер обмена — его удобно сразу отправить в мессенджер.
+
+    Через файл и PowerShell: `clip` перекодирует кириллицу в OEM-кодировку и
+    ломает текст, а Set-Clipboard с -Encoding UTF8 читает файл как есть.
+    """
+    try:
+        done = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"Set-Clipboard -Value (Get-Content -LiteralPath '{text_file}' -Raw -Encoding UTF8)",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        return done.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def publish_invite(lines: list[str]) -> None:
+    """Печатает приглашение, пишет файл и кладёт его в буфер обмена."""
+    text = "\n".join(lines) + "\n"
+    print("\n" + text)
+    SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+    INVITE_FILE.write_text(text, encoding="utf-8")
+    print(f"Приглашение сохранено: {INVITE_FILE}")
+    if copy_to_clipboard(INVITE_FILE):
+        print("Скопировано в буфер обмена — можно сразу вставлять в мессенджер.")
+
+
 # --- main -------------------------------------------------------------------
 
 
@@ -348,6 +586,7 @@ def main() -> int:
     parser.add_argument("--no-tunnel", action="store_true", help="не поднимать туннель (только локально)")
     parser.add_argument("--lan", action="store_true", help="слушать 0.0.0.0 и показать адрес в сети")
     parser.add_argument("--fresh-db", action="store_true", help="пересоздать копию базы из рабочей")
+    parser.add_argument("--stop", action="store_true", help="остановить показ и освободить порт")
     args = parser.parse_args()
 
     # Консоль Windows по умолчанию в cp1251 — без этого кириллица падает с ошибкой.
@@ -357,7 +596,21 @@ def main() -> int:
         except (AttributeError, ValueError):
             pass
 
+    if args.stop:
+        print("\n=== Остановка публичного показа ===")
+        cleanup_own_processes()
+        if port_is_busy(args.port):
+            free_port(args.port)
+        print("Порт свободен." if not port_is_busy(args.port) else "Порт всё ещё занят — см. выше.")
+        return 0
+
     print("\n=== Публичный показ афиши ===\n")
+    print(f"0. Порт {args.port}")
+    cleanup_own_processes()  # хвосты прошлого запуска держат порт и портят показ
+    if not free_port(args.port):
+        return 1
+    print("  свободен")
+
     print("1. Секреты и пароли приглашения")
     secrets_map = ensure_secrets()
     print(f"  файл: {ENV_FILE}")
@@ -400,9 +653,17 @@ def main() -> int:
     )
     if not wait_for_health(args.port, timeout=45):
         print("\nBackend не поднялся за 45 секунд. Логи — выше (uvicorn --log-level warning).")
-        server.terminate()
+        stop_process_tree(server)
         return 1
     print(f"  готов: http://127.0.0.1:{args.port}")
+    if not check_local_public_mode(
+        args.port, secrets_map["AFISHA_GATE_USER"], secrets_map["AFISHA_GATE_PASSWORD"]
+    ):
+        print("\nНа этом порту отвечает НЕ наш публичный сервер: гейт не работает")
+        print("и Swagger открыт — показ наружу в таком виде не поднимаю.")
+        stop_process_tree(server)
+        return 1
+    save_pids(server=server.pid)
 
     tunnel: Tunnel | None = None
     public_url: str | None = None
@@ -428,7 +689,36 @@ def main() -> int:
             tunnel.stop()
             tunnel = None
 
-    lines: list[str] = []
+    def build_lines(url: str | None) -> list[str]:
+        """Текст приглашения.
+
+        Отдельной функцией, потому что при перезапуске туннеля адрес меняется
+        и приглашение приходится выпускать заново.
+        """
+        lines: list[str] = []
+        if url:
+            lines += [
+                "Ссылка (открыть в браузере, пароль спросит один раз):",
+                f"  {url}",
+                "",
+                f"Вход в сам сайт (HTTP Basic): {secrets_map['AFISHA_GATE_USER']} / {secrets_map['AFISHA_GATE_PASSWORD']}",
+            ]
+        else:
+            lines.append(f"Локально: http://127.0.0.1:{args.port}")
+            if args.lan:
+                lan = lan_address(args.port)
+                if lan:
+                    lines.append(f"В локальной сети: {lan}")
+        lines += ["", "Аккаунты на сайте:"]
+        for role, email, password in accounts:
+            lines.append(f"  {role}: {email} / {password}")
+        lines += [
+            "",
+            "Данные показа — копия базы, рабочие события не затрагиваются.",
+            "Остановить: Ctrl+C в этом окне.",
+        ]
+        return lines
+
     if public_url:
         print("5. Самопроверка публичного адреса")
         anonymous_ok, authorized_ok = check_from_outside(
@@ -436,35 +726,40 @@ def main() -> int:
         )
         print(f"  без пароля: {'401 (ок)' if anonymous_ok else 'НЕ 401 — проверить гейт!'}")
         print(f"  с паролем:  {'200 (ок)' if authorized_ok else 'НЕ 200 — проверить доступ!'}")
-        lines += [
-            "Ссылка (открыть в браузере, пароль спросит один раз):",
-            f"  {public_url}",
-            "",
-            f"Вход в сам сайт (HTTP Basic): {secrets_map['AFISHA_GATE_USER']} / {secrets_map['AFISHA_GATE_PASSWORD']}",
-        ]
-    else:
-        local = f"http://127.0.0.1:{args.port}"
-        lines.append(f"Локально: {local}")
-        if args.lan:
-            lan = lan_address(args.port)
-            if lan:
-                lines.append(f"В локальной сети: {lan}")
-    lines += ["", "Аккаунты на сайте:"]
-    for role, email, password in accounts:
-        lines.append(f"  {role}: {email} / {password}")
-    lines += [
-        "",
-        "Данные показа — копия базы, рабочие события не затрагиваются.",
-        "Остановить: Ctrl+C в этом окне.",
-    ]
 
-    print("\n" + "\n".join(lines))
-    SECRETS_DIR.mkdir(parents=True, exist_ok=True)
-    INVITE_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"\nПриглашение сохранено: {INVITE_FILE}")
+    publish_invite(build_lines(public_url))
+    save_pids(server=server.pid, tunnel=tunnel.process.pid if tunnel and tunnel.process else None)
 
+    restarts = 0
     try:
         while server.poll() is None:
+            # Сторож туннеля: quick-туннели живут нестабильно, а молча упавший
+            # туннель выглядит как «ссылка не открывается» на стороне гостя.
+            if tunnel is not None and tunnel.process is not None and tunnel.process.poll() is not None:
+                if restarts >= 3:
+                    print("\nТуннель не восстановился — показ остаётся только локальным.")
+                    tunnel = None
+                else:
+                    restarts += 1
+                    print(f"\nТуннель отвалился — поднимаю заново (попытка {restarts}/3)…")
+                    tunnel.stop()
+                    tunnel = Tunnel(args.port)
+                    public_url = tunnel.start() or None
+                    if not public_url:
+                        tunnel.stop()
+                        tunnel = Tunnel(args.port)
+                        public_url = tunnel.start(protocol="http2")
+                    if public_url:
+                        print(f"  новая ссылка: {public_url}")
+                        print("  Внимание: адрес изменился — отправьте другу новую ссылку.")
+                        publish_invite(build_lines(public_url))
+                        save_pids(
+                            server=server.pid,
+                            tunnel=tunnel.process.pid if tunnel.process else None,
+                        )
+                    else:
+                        print("  не получилось — попробую снова через 10 секунд")
+                        time.sleep(10)
             time.sleep(1)
         print("\nBackend завершился сам — останавливаю туннель.")
     except KeyboardInterrupt:
@@ -472,12 +767,8 @@ def main() -> int:
     finally:
         if tunnel:
             tunnel.stop()
-        if server.poll() is None:
-            server.terminate()
-            try:
-                server.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                server.kill()
+        stop_process_tree(server)
+        PID_FILE.unlink(missing_ok=True)
     return 0
 
 
