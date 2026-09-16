@@ -12,9 +12,12 @@
   непустой» считала мёртвый PID живым;
 - режим сервера на порту распознаётся верно: /openapi.json анонимно отдаёт 401
   от гейта, поэтому ожидание 404 без пароля объявляло живой публичный сервер
-  чужим и глушило показ (проверка щупает Swagger с паролем гейта).
+  чужим и глушило показ (проверка щупает Swagger с паролем гейта);
+- в приглашении перечислены все роли, включая админа: аккаунт, обещанный гостю,
+  обязан реально создаваться в копии базы, а пароль из файла секретов — работать.
 """
 import base64
+import sys
 import http.server
 import socket
 import threading
@@ -151,3 +154,95 @@ def test_public_mode_check_rejects_dev_server():
 )
 def test_human_age(seconds, expected):
     assert expose.human_age(seconds) == expected
+
+
+def _demo_secrets() -> dict[str, str]:
+    return {
+        "AFISHA_GATE_USER": "afisha",
+        "AFISHA_GATE_PASSWORD": "gate-pass",
+        "DEMO_ADMIN_EMAIL": "admin-friend@example.com",
+        "DEMO_ADMIN_NAME": "Админ (тест)",
+        "DEMO_ADMIN_PASSWORD": "admin-pass",
+        "DEMO_ORGANIZER_EMAIL": "friend@example.com",
+        "DEMO_ORGANIZER_NAME": "Друг (тест)",
+        "DEMO_ORGANIZER_PASSWORD": "org-pass",
+        "DEMO_MODERATOR_EMAIL": "moderator-friend@example.com",
+        "DEMO_MODERATOR_NAME": "Модератор (тест)",
+        "DEMO_MODERATOR_PASSWORD": "mod-pass",
+    }
+
+
+def test_demo_accounts_include_admin_and_mute_dev_accounts(tmp_path):
+    """Приглашение обещает админа — значит, аккаунт обязан создаваться.
+
+    Заодно инвариант показа: активными в копии остаются только демо-аккаунты,
+    а dev-админ рабочей базы гасится.
+    """
+    sys.path.insert(0, str(expose.BACKEND_DIR))
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from app.db import Base, build_engine, build_session_factory  # noqa: PLC0415
+    from app.models import User  # noqa: PLC0415
+    from app.security import hash_password, verify_password  # noqa: PLC0415
+
+    url = f"sqlite:///{(tmp_path / 'public.sqlite3').as_posix()}"
+    secrets_map = _demo_secrets()
+
+    engine = build_engine(url)
+    Base.metadata.create_all(engine)
+    with build_session_factory(engine)() as session:
+        session.add(
+            User(
+                email="denis@gmail.ru",
+                password_hash=hash_password("рабочий-пароль"),
+                full_name="Денис",
+                role="admin",
+                is_active=True,
+            )
+        )
+        session.commit()
+    engine.dispose()
+
+    created = expose.ensure_demo_accounts(url, secrets_map)
+
+    assert created == [
+        ("admin", "admin-friend@example.com", "admin-pass"),
+        ("organizer", "friend@example.com", "org-pass"),
+        ("moderator", "moderator-friend@example.com", "mod-pass"),
+    ]
+
+    engine = build_engine(url)
+    with build_session_factory(engine)() as session:
+        users = {u.email: u for u in session.scalars(select(User)).all()}
+    engine.dispose()
+
+    admin = users["admin-friend@example.com"]
+    assert (admin.role, admin.is_active) == ("admin", True)
+    assert admin.password_hash != "admin-pass"  # открытым текстом пароль не лежит
+    assert verify_password("admin-pass", admin.password_hash) is True
+    assert users["denis@gmail.ru"].is_active is False
+
+
+def test_invite_names_credentials_of_every_role():
+    """Ровно то, что гость видит в invite.txt: гейт и аккаунты по ролям."""
+    accounts = [
+        ("admin", "admin-friend@example.com", "admin-pass"),
+        ("organizer", "friend@example.com", "org-pass"),
+    ]
+
+    text = "\n".join(
+        expose.build_invite_lines(
+            "https://example.trycloudflare.com", _demo_secrets(), accounts, port=8098
+        )
+    )
+
+    assert "https://example.trycloudflare.com" in text
+    assert "afisha / gate-pass" in text
+    assert "admin: admin-friend@example.com / admin-pass" in text
+    assert "organizer: friend@example.com / org-pass" in text
+
+
+def test_invite_without_tunnel_stays_local():
+    text = "\n".join(expose.build_invite_lines(None, _demo_secrets(), [], port=8098))
+
+    assert "Локально: http://127.0.0.1:8098" in text

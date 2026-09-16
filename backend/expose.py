@@ -86,6 +86,8 @@ def load_env_file(path: Path) -> dict[str, str]:
 
 DEFAULT_SECRETS = {
     "AFISHA_GATE_USER": "afisha",
+    "DEMO_ADMIN_EMAIL": "admin-friend@example.com",
+    "DEMO_ADMIN_NAME": "Админ (тест)",
     "DEMO_ORGANIZER_EMAIL": "friend@example.com",
     "DEMO_ORGANIZER_NAME": "Друг (тест)",
     "DEMO_MODERATOR_EMAIL": "moderator-friend@example.com",
@@ -103,6 +105,7 @@ def ensure_secrets() -> dict[str, str]:
     generated = {
         "AFISHA_SECRET_KEY": lambda: secrets.token_urlsafe(48),
         "AFISHA_GATE_PASSWORD": generate_password,
+        "DEMO_ADMIN_PASSWORD": generate_password,
         "DEMO_ORGANIZER_PASSWORD": generate_password,
         "DEMO_MODERATOR_PASSWORD": generate_password,
     }
@@ -162,6 +165,9 @@ def ensure_demo_accounts(database_url: str, secrets_map: dict[str, str]) -> list
     Копия делается с рабочей базы, а там остались dev-аккаунты (в том числе
     admin@afisha.local) с известными паролями. Публичный показ не должен их
     нести: все прочие пользователи гасятся, их refresh-токены удаляются.
+
+    Админ нужен, чтобы гость мог понажимать и админ-панель; он тоже живёт
+    только в копии, а пароль берётся из файла секретов.
     """
     sys.path.insert(0, str(BACKEND_DIR))
     from sqlalchemy import delete, select, update  # noqa: PLC0415
@@ -175,6 +181,12 @@ def ensure_demo_accounts(database_url: str, secrets_map: dict[str, str]) -> list
     factory = build_session_factory(engine)
 
     wanted = [
+        (
+            "admin",
+            secrets_map["DEMO_ADMIN_EMAIL"],
+            secrets_map["DEMO_ADMIN_PASSWORD"],
+            secrets_map["DEMO_ADMIN_NAME"],
+        ),
         (
             "organizer",
             secrets_map["DEMO_ORGANIZER_EMAIL"],
@@ -566,6 +578,45 @@ def copy_to_clipboard(text_file: Path) -> bool:
         return False
 
 
+def build_invite_lines(
+    url: str | None,
+    secrets_map: dict[str, str],
+    accounts: list[tuple[str, str, str]],
+    *,
+    port: int,
+    lan: bool = False,
+) -> list[str]:
+    """Текст приглашения.
+
+    Отдельной функцией, потому что при перезапуске туннеля адрес меняется и
+    приглашение приходится выпускать заново, и потому что состав аккаунтов
+    (в том числе админ) должен быть проверяем тестом, а не глазами.
+    """
+    lines: list[str] = []
+    if url:
+        lines += [
+            "Ссылка (открыть в браузере, пароль спросит один раз):",
+            f"  {url}",
+            "",
+            f"Вход в сам сайт (HTTP Basic): {secrets_map['AFISHA_GATE_USER']} / {secrets_map['AFISHA_GATE_PASSWORD']}",
+        ]
+    else:
+        lines.append(f"Локально: http://127.0.0.1:{port}")
+        if lan:
+            address = lan_address(port)
+            if address:
+                lines.append(f"В локальной сети: {address}")
+    lines += ["", "Аккаунты на сайте:"]
+    for role, email, password in accounts:
+        lines.append(f"  {role}: {email} / {password}")
+    lines += [
+        "",
+        "Данные показа — копия базы, рабочие события не затрагиваются.",
+        "Остановить: Ctrl+C в этом окне.",
+    ]
+    return lines
+
+
 def publish_invite(lines: list[str]) -> None:
     """Печатает приглашение, пишет файл и кладёт его в буфер обмена."""
     text = "\n".join(lines) + "\n"
@@ -689,36 +740,6 @@ def main() -> int:
             tunnel.stop()
             tunnel = None
 
-    def build_lines(url: str | None) -> list[str]:
-        """Текст приглашения.
-
-        Отдельной функцией, потому что при перезапуске туннеля адрес меняется
-        и приглашение приходится выпускать заново.
-        """
-        lines: list[str] = []
-        if url:
-            lines += [
-                "Ссылка (открыть в браузере, пароль спросит один раз):",
-                f"  {url}",
-                "",
-                f"Вход в сам сайт (HTTP Basic): {secrets_map['AFISHA_GATE_USER']} / {secrets_map['AFISHA_GATE_PASSWORD']}",
-            ]
-        else:
-            lines.append(f"Локально: http://127.0.0.1:{args.port}")
-            if args.lan:
-                lan = lan_address(args.port)
-                if lan:
-                    lines.append(f"В локальной сети: {lan}")
-        lines += ["", "Аккаунты на сайте:"]
-        for role, email, password in accounts:
-            lines.append(f"  {role}: {email} / {password}")
-        lines += [
-            "",
-            "Данные показа — копия базы, рабочие события не затрагиваются.",
-            "Остановить: Ctrl+C в этом окне.",
-        ]
-        return lines
-
     if public_url:
         print("5. Самопроверка публичного адреса")
         anonymous_ok, authorized_ok = check_from_outside(
@@ -727,7 +748,9 @@ def main() -> int:
         print(f"  без пароля: {'401 (ок)' if anonymous_ok else 'НЕ 401 — проверить гейт!'}")
         print(f"  с паролем:  {'200 (ок)' if authorized_ok else 'НЕ 200 — проверить доступ!'}")
 
-    publish_invite(build_lines(public_url))
+    publish_invite(
+        build_invite_lines(public_url, secrets_map, accounts, port=args.port, lan=args.lan)
+    )
     save_pids(server=server.pid, tunnel=tunnel.process.pid if tunnel and tunnel.process else None)
 
     restarts = 0
@@ -752,7 +775,11 @@ def main() -> int:
                     if public_url:
                         print(f"  новая ссылка: {public_url}")
                         print("  Внимание: адрес изменился — отправьте другу новую ссылку.")
-                        publish_invite(build_lines(public_url))
+                        publish_invite(
+                            build_invite_lines(
+                                public_url, secrets_map, accounts, port=args.port, lan=args.lan
+                            )
+                        )
                         save_pids(
                             server=server.pid,
                             tunnel=tunnel.process.pid if tunnel.process else None,
