@@ -385,12 +385,24 @@
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="admin">Админка</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <div class="toast" id="toast"></div>
   <script>
-    // API base URL: можно переопределить через ?api=... или localStorage
-    // Локально: http://127.0.0.1:8000/api/v1
-    // Продакшн: https://ваш-бакенд.рф/api/v1
-    const API_BASE = (new URLSearchParams(window.location.search).get('api')) ||
-                         localStorage.getItem('api_base') ||
-                         'http://127.0.0.1:8000/api/v1';
+    // API base URL: можно переопределить через ?api=... или localStorage.
+    // Иначе определяется по адресу страницы, чтобы работали оба сценария:
+    //   • локальная разработка — фронт на отдельном порту, API на :8000;
+    //   • публичная ссылка (туннель) — фронт и API отдаёт один и тот же backend,
+    //     значит тот же origin (иначе браузер товарища стучался бы в localhost).
+    function resolveApiBase() {
+      const override = new URLSearchParams(window.location.search).get('api') ||
+                       localStorage.getItem('api_base');
+      if (override) return override;
+      const { protocol, hostname, port, origin } = window.location;
+      if (protocol === 'file:') return 'http://127.0.0.1:8000/api/v1';
+      const isLoopback = hostname === '127.0.0.1' || hostname === 'localhost';
+      if (isLoopback && port !== '8000') return 'http://127.0.0.1:8000/api/v1';
+      // Страница отдаётся самим бэкендом (локально на :8000 или через туннель) —
+      // API живёт на том же origin.
+      return `${origin}/api/v1`;
+    }
+    const API_BASE = resolveApiBase();
 
         // Функция для смены API base URL
         function promptApiBase() {
@@ -458,7 +470,7 @@
     let favoriteEvents = [];          // полные объекты для вкладки «Избранное»
     let currentDetailEvent = null;
 
-    function authHeader() { return {'Authorization': `Bearer ${getAccessToken()}`}; }
+    function authHeader() { return {'X-Auth-Token': `${getAccessToken()}`}; }
 
     async function loadFavorites() {
       if (!getAccessToken()) { favoriteIds = new Set(); favoriteEvents = []; return; }
@@ -1223,7 +1235,7 @@
         : (isEdit ? `${API_BASE}/me/events/${editingEventId}` : `${API_BASE}/events`);
       const headers = {'Content-Type': 'application/json'};
       const access = getAccessToken();
-      if (access) headers['Authorization'] = `Bearer ${access}`;
+      if (access) headers['X-Auth-Token'] = `${access}`;
       if (!isEdit && !isModEdit) payload.slug = `event-${Date.now()}`;
       try {
         const response = await fetch(url, {
@@ -1258,7 +1270,7 @@
       try {
         const resp = await fetch(`${API_BASE}/me/events/${id}`, {
           method: 'DELETE',
-          headers: {'Authorization': `Bearer ${getAccessToken()}`},
+          headers: {'X-Auth-Token': `${getAccessToken()}`},
         });
         if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
         if (!resp.ok) {
@@ -1389,7 +1401,7 @@
       const list = document.getElementById('notifications-list');
       if (!getAccessToken()) { notificationsCache = []; renderNotifications(); return; }
       try {
-        const resp = await fetch(`${API_BASE}/me/notifications`, { headers: {'Authorization': `Bearer ${getAccessToken()}`} });
+        const resp = await fetch(`${API_BASE}/me/notifications`, { headers: {'X-Auth-Token': `${getAccessToken()}`} });
         if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить уведомления');
@@ -1423,14 +1435,14 @@
     }
     async function markNotificationRead(id) {
       try {
-        const resp = await fetch(`${API_BASE}/me/notifications/${id}/read`, { method: 'PATCH', headers: {'Authorization': `Bearer ${getAccessToken()}`} });
+        const resp = await fetch(`${API_BASE}/me/notifications/${id}/read`, { method: 'PATCH', headers: {'X-Auth-Token': `${getAccessToken()}`} });
         if (!resp.ok) throw new Error('Не удалось пометить прочитанным');
         await loadNotifications();
       } catch (error) { toast(error.message); }
     }
     async function markAllNotificationsRead() {
       try {
-        const resp = await fetch(`${API_BASE}/me/notifications/read-all`, { method: 'POST', headers: {'Authorization': `Bearer ${getAccessToken()}`} });
+        const resp = await fetch(`${API_BASE}/me/notifications/read-all`, { method: 'POST', headers: {'X-Auth-Token': `${getAccessToken()}`} });
         if (!resp.ok) throw new Error('Не удалось');
         await loadNotifications();
       } catch (error) { toast(error.message); }
@@ -1440,7 +1452,7 @@
       if (!badge) return;
       if (!getAccessToken()) { badge.style.display = 'none'; return; }
       try {
-        const resp = await fetch(`${API_BASE}/me/notifications/unread-count`, { headers: {'Authorization': `Bearer ${getAccessToken()}`} });
+        const resp = await fetch(`${API_BASE}/me/notifications/unread-count`, { headers: {'X-Auth-Token': `${getAccessToken()}`} });
         if (!resp.ok) { badge.style.display = 'none'; return; }
         const data = await resp.json();
         const count = data.count || 0;
@@ -1460,7 +1472,7 @@
       if (!token) return;
       const list = document.getElementById('my-events-list');
       try {
-        const resp = await fetch(`${API_BASE}/me/events`, { headers: {Authorization: `Bearer ${token}`} });
+        const resp = await fetch(`${API_BASE}/me/events`, { headers: {'X-Auth-Token': `${token}`} });
         if (resp.status === 401) { clearSession(); showScreen('auth'); return; }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить события');
@@ -1488,7 +1500,7 @@
       try {
         const resp = await fetch(`${API_BASE}/me/events/${id}/${action}`, {
           method: 'POST',
-          headers: {'Authorization': `Bearer ${getAccessToken()}`},
+          headers: {'X-Auth-Token': `${getAccessToken()}`},
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось выполнить действие');
@@ -1512,7 +1524,7 @@
       const token = getAccessToken();
       if (!token) { toast('Войдите как модератор или админ, чтобы просматривать очередь'); return; }
       try {
-        const resp = await fetch(`${API_BASE}/moderation/events?status=${moderationStatus}`, { headers: {Authorization: `Bearer ${token}`} });
+        const resp = await fetch(`${API_BASE}/moderation/events?status=${moderationStatus}`, { headers: {'X-Auth-Token': `${token}`} });
         if (resp.status === 403) { toast('Недостаточно прав: нужна роль модератора или админа'); return; }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить очередь');
@@ -1573,7 +1585,7 @@
       try {
         const resp = await fetch(`${API_BASE}/moderation/events/${id}/review`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${getAccessToken()}`},
+          headers: {'Content-Type': 'application/json', 'X-Auth-Token': `${getAccessToken()}`},
           body: JSON.stringify(decision === 'reject' ? {decision, reason} : {decision}),
         });
         const data = await resp.json();
@@ -1592,7 +1604,7 @@
       try {
         const resp = await fetch(`${API_BASE}/moderation/events/${id}/unpublish`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${getAccessToken()}`},
+          headers: {'Content-Type': 'application/json', 'X-Auth-Token': `${getAccessToken()}`},
           body: JSON.stringify({reason}),
         });
         const data = await resp.json();
@@ -1610,7 +1622,7 @@
       try {
         const resp = await fetch(`${API_BASE}/moderation/events/${id}`, {
           method: 'DELETE',
-          headers: {'Authorization': `Bearer ${getAccessToken()}`},
+          headers: {'X-Auth-Token': `${getAccessToken()}`},
         });
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
@@ -1655,7 +1667,7 @@
       const token = getAccessToken();
       if (!token) { toast('Войдите как админ'); return; }
       try {
-        const resp = await fetch(`${API_BASE}/admin/users`, { headers: {Authorization: `Bearer ${token}`} });
+        const resp = await fetch(`${API_BASE}/admin/users`, { headers: {'X-Auth-Token': `${token}`} });
         if (resp.status === 403) { toast('Недостаточно прав: нужна роль админа'); return; }
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить пользователей');
@@ -1687,7 +1699,7 @@
       try {
         const resp = await fetch(`${API_BASE}/admin/users/${id}/role`, {
           method: 'PATCH',
-          headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+          headers: {'Content-Type': 'application/json', 'X-Auth-Token': `${token}`},
           body: JSON.stringify({role}),
         });
         const data = await resp.json();
@@ -1763,7 +1775,7 @@
         setSession(data.access_token, data.refresh_token, null);
         // Подтягиваем профиль пользователя (id, роль)
         const meResp = await fetch(`${API_BASE}/auth/me`, {
-          headers: {'Authorization': `Bearer ${data.access_token}`},
+          headers: {'X-Auth-Token': `${data.access_token}`},
         });
         if (!meResp.ok) throw new Error('Не удалось загрузить профиль');
         const me = await meResp.json();
@@ -1783,7 +1795,7 @@
       try {
         await fetch(`${API_BASE}/auth/logout`, {
           method: 'POST',
-          headers: {'Content-Type': 'application/json', ...(access ? {'Authorization': `Bearer ${access}`} : {})},
+          headers: {'Content-Type': 'application/json', ...(access ? {'X-Auth-Token': `${access}`} : {})},
           body: JSON.stringify({refresh_token: refresh}),
         });
       } catch (e) { /* сетевой сбой — всё равно чистим локально */ }
@@ -1797,7 +1809,7 @@
       if (!access) { renderAuthState(); return; }
       try {
         const resp = await fetch(`${API_BASE}/auth/me`, {
-          headers: {'Authorization': `Bearer ${access}`},
+          headers: {'X-Auth-Token': `${access}`},
         });
         if (resp.ok) {
           setSession(access, localStorage.getItem('afisha_refresh_token'), await resp.json());
