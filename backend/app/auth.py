@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from jose import JWTError
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .db import session_dependency
+from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
 from .models import RefreshToken, User
 from .security import (
     create_access_token,
@@ -53,17 +54,38 @@ class TokenPair(BaseModel):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
+# Токен приложения читаем в первую очередь из X-Auth-Token. Под Basic-гейтом
+# заголовок Authorization занят паролем доступа к сайту, и браузер подставляет
+# его сам — если SPA положит туда Bearer, гейт не увидит своих кредов и будет
+# бесконечно показывать диалог входа. Bearer оставлен для локальной разработки,
+# Swagger и тестов.
+api_key_scheme = APIKeyHeader(name="X-Auth-Token", auto_error=False)
+
+
+def app_token(
+    api_key: str | None = Depends(api_key_scheme),
+    bearer: str | None = Depends(oauth2_scheme),
+) -> str | None:
+    return api_key or bearer
+
 
 def serialize_user(user: User) -> UserOut:
     return UserOut.model_validate(user)
 
 
-def build_auth_routes(session_factory):
+def build_auth_routes(
+    session_factory,
+    login_limiter: LoginRateLimiter | None = None,
+    register_limiter: SlidingWindowLimiter | None = None,
+):
     """Собирает auth-эндпоинты с привязкой к session_factory из create_app.
 
     Роутер создаётся ЛОКАЛЬНО на каждый вызов — иначе модульный singleton-роутер
     оставляет замыкание get_session от первого create_app(), и повторные вызовы
     (например, в тестах с отдельной БД) пишут в «чужую» базу.
+
+    Лимитеры передаются снаружи (создаются в create_app), чтобы состояние не
+    переезжало между приложениями/тестами.
     """
     router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -71,14 +93,13 @@ def build_auth_routes(session_factory):
         yield from session_dependency(session_factory)
 
     def get_current_user(
-        token: str | None = Depends(oauth2_scheme),
+        token: str | None = Depends(app_token),
         session: Session = Depends(get_session),
     ) -> User:
         if token is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated",
-                headers={"WWW-Authenticate": "Bearer"},
             )
         try:
             payload = decode_access_token(token)
@@ -86,7 +107,6 @@ def build_auth_routes(session_factory):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token",
-                headers={"WWW-Authenticate": "Bearer"},
             )
         if payload.get("type") != "access":
             raise HTTPException(
@@ -128,7 +148,14 @@ def build_auth_routes(session_factory):
         )
 
     @router.post("/register", response_model=UserOut, status_code=201)
-    def register(payload: RegisterRequest, session: Session = Depends(get_session)) -> UserOut:
+    def register(
+        payload: RegisterRequest,
+        request: Request,
+        session: Session = Depends(get_session),
+    ) -> UserOut:
+        if register_limiter is not None:
+            # Защита от массовой регистрации с одного адреса при публичном доступе.
+            register_limiter.check(client_ip(request))
         email = payload.email.lower()
         existing = session.scalar(select(User).where(User.email == email))
         if existing is not None:
@@ -147,15 +174,32 @@ def build_auth_routes(session_factory):
             session.rollback()
             raise HTTPException(status_code=409, detail="Email already registered")
         session.refresh(user)
+        if register_limiter is not None:
+            register_limiter.hit(client_ip(request))
         return serialize_user(user)
 
     @router.post("/login", response_model=TokenPair)
-    def login(payload: LoginRequest, session: Session = Depends(get_session)) -> TokenPair:
-        user = session.scalar(select(User).where(User.email == payload.email.lower()))
+    def login(
+        payload: LoginRequest,
+        request: Request,
+        session: Session = Depends(get_session),
+    ) -> TokenPair:
+        email = payload.email.lower()
+        ip = client_ip(request)
+        # Лимит проверяется ДО проверки пароля: иначе перебор не остановить.
+        if login_limiter is not None:
+            login_limiter.check(ip, email)
+        user = session.scalar(select(User).where(User.email == email))
         if user is None or not verify_password(payload.password, user.password_hash):
+            if login_limiter is not None:
+                login_limiter.register_failure(ip, email)
             raise HTTPException(status_code=401, detail="Invalid email or password")
         if not user.is_active:
             raise HTTPException(status_code=403, detail="Account is deactivated")
+        if login_limiter is not None:
+            # Успешный вход обнуляет счётчик по аккаунту: опечатки не должны
+            # запирать владельца, а лимит по IP продолжает накапливаться.
+            login_limiter.clear_for(ip, email)
         return _create_token_pair(session, user)
 
     @router.post("/refresh", response_model=TokenPair)
