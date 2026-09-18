@@ -38,7 +38,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
-python -c "import uvicorn, fastapi" >NUL 2>&1
+rem --- проверка ВСЕХ зависимостей из backend\requirements.txt (раньше проверялись
+rem --- только uvicorn+fastapi: у пользователя sqlalchemy не стояла, проверка
+rem --- проходила, и показ падал позже на ModuleNotFoundError):
+python backend\check_deps.py
 if errorlevel 1 (
   echo.
   echo Зависимости бэкенда не установлены - ставлю из backend\requirements.txt...
