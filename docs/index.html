@@ -52,8 +52,14 @@
       --pill-ink: #0b1a33;
       /* Тёмная панель поиска на светлом фоне читается и так, но тонкий
          градиентный кант даёт ей «стеклянный» край вместо плоской плиты. */
-      --hero-ring: linear-gradient(135deg, rgba(0,170,255,.9), rgba(0,153,255,.18) 38%, rgba(255,255,255,.12) 58%, rgba(0,153,255,.5));
+      --hero-ring: linear-gradient(135deg, rgba(0,176,255,.95), rgba(0,153,255,.22) 38%, rgba(255,255,255,.18) 58%, rgba(0,153,255,.6));
+      --hero-ring-focus: linear-gradient(135deg, rgba(0,190,255,1), rgba(0,153,255,.38) 36%, rgba(255,255,255,.3) 56%, rgba(0,153,255,.82));
       --hero-glow: 0 18px 46px -26px rgba(0,153,255,.7);
+      --hero-glow-focus: 0 22px 58px -26px rgba(0,153,255,.95), 0 0 0 3px rgba(0,153,255,.15);
+      /* Блик «стекла» по верхней кромке панели — свои значения на тему. */
+      --hero-sheen: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0) 34%);
+      /* Внутренности «глубоких» панелей тёмные в ОБЕИХ темах — цвет фокуса полей один. */
+      --hero-field-focus: #5cb5ff;
       --topbar-bg: rgba(248,249,250,.94);
       --shadow: 0 16px 40px rgba(11, 26, 51, .08);
       --shadow-soft: 0 5px 18px rgba(11,26,51,.035);
@@ -89,8 +95,12 @@
       --deep: #070c16;
       /* На тёмном фоне панель (#070c16) темнее фона (#0d1117) — плоская граница
          её не разделяет, край приходится подсвечивать градиентом. */
-      --hero-ring: linear-gradient(135deg, rgba(92,181,255,.65), rgba(92,181,255,.12) 42%, rgba(92,181,255,.05) 60%, rgba(92,181,255,.45));
-      --hero-glow: 0 20px 52px -30px rgba(92,181,255,.85), inset 0 1px 0 rgba(255,255,255,.05);
+      --hero-ring: linear-gradient(135deg, rgba(92,181,255,.85), rgba(92,181,255,.18) 42%, rgba(92,181,255,.08) 60%, rgba(92,181,255,.58));
+      --hero-ring-focus: linear-gradient(135deg, rgba(126,207,255,1), rgba(92,181,255,.42) 40%, rgba(92,181,255,.22) 58%, rgba(92,181,255,.9));
+      --hero-glow: 0 20px 52px -30px rgba(92,181,255,.85), inset 0 1px 0 rgba(255,255,255,.06);
+      --hero-glow-focus: 0 24px 62px -28px rgba(92,181,255,1), 0 0 0 3px rgba(92,181,255,.18), inset 0 1px 0 rgba(255,255,255,.1);
+      --hero-sheen: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 36%);
+      --hero-field-focus: #5cb5ff;
       --topbar-bg: rgba(13,17,23,.92);
       --shadow: 0 16px 40px rgba(0,0,0,.55);
       --shadow-soft: 0 5px 18px rgba(0,0,0,.35);
@@ -140,9 +150,15 @@
     .intro { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 30px; }
     .intro h1 { font-size: clamp(30px, 4vw, 54px); max-width: 720px; line-height: 1.02; }
     .intro p { max-width: 520px; color: var(--muted); line-height: 1.6; margin: 14px 0 0; }
-    .hero-search { border-radius: 24px; padding: 26px; color: var(--on-deep); margin-bottom: 28px; display: grid; grid-template-columns: 1.5fr .8fr .8fr auto; gap: 10px; align-items: end; border: 1px solid transparent; background-color: var(--deep); background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring); background-origin: padding-box, border-box; background-clip: padding-box, border-box; box-shadow: var(--shadow), var(--hero-glow); }
+    .hero-search { position: relative; border-radius: 24px; padding: 26px; color: var(--on-deep); margin-bottom: 28px; display: grid; grid-template-columns: 1.5fr .8fr .8fr auto; gap: 10px; align-items: end; border: 1px solid transparent; background-color: var(--deep); background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring); background-origin: padding-box, border-box; background-clip: padding-box, border-box; box-shadow: var(--shadow), var(--hero-glow); transition: box-shadow .28s ease; }
     .hero-search label { display: grid; gap: 7px; color: #aebbd0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-    .hero-search input, .hero-search select { width: 100%; padding: 13px 14px; border: 1px solid #30425e; background: #132542; color: #fff; border-radius: 10px; outline: 0; }
+    .hero-search input, .hero-search select { width: 100%; padding: 13px 14px; border: 1px solid #30425e; background: #132542; color: #fff; border-radius: 10px; outline: 0; transition: border-color .2s ease, box-shadow .2s ease; }
+    .hero-search input:focus, .hero-search select:focus { border-color: var(--hero-field-focus); box-shadow: 0 0 0 3px rgba(92,181,255,.18); }
+    /* Фокус внутри панели: кант вспыхивает, свечение расходится шире. */
+    .hero-search:focus-within { background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring-focus); box-shadow: var(--shadow), var(--hero-glow-focus); }
+    /* Блик «стекла» по верхней кромке: слой вне потока, чтобы не ломать grid/флекс,
+       и под содержимым (z-index -1), иначе он подсвечивает текст полей. */
+    .hero-search:after, .side-note:after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--hero-sheen); pointer-events: none; }
     .hero-search .primary-btn { height: 46px; white-space: nowrap; }
     /* Панель фильтров каталога в стиле Яндекс.Афиши: «Когда» · «Тип события» · «Место» */
     .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -270,7 +286,7 @@
     .field textarea { resize: vertical; min-height: 110px; }
     .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,255,.11); }
     .form-actions { display: flex; gap: 10px; justify-content: end; margin-top: 24px; }
-    .side-note { background: var(--deep); color: var(--on-deep); border-radius: var(--radius); padding: 23px; }
+    .side-note { position: relative; color: var(--on-deep); border-radius: var(--radius); padding: 23px; border: 1px solid transparent; background-color: var(--deep); background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring); background-origin: padding-box, border-box; background-clip: padding-box, border-box; box-shadow: var(--hero-glow); }
     .side-note h3 { font-size: 17px; margin-bottom: 12px; }
     .side-note p { color: var(--on-deep-muted); font-size: 13px; line-height: 1.65; }
     .checklist { display: grid; gap: 11px; margin-top: 20px; }
@@ -301,7 +317,7 @@
     .nav-tabs { display: flex; gap: 7px; overflow-x: auto; padding: 16px 0 0; }
     .nav-tab { white-space: nowrap; border: 0; background: transparent; padding: 9px 12px; border-radius: 9px; color: var(--muted); font-weight: 700; font-size: 12px; }
     .nav-tab.active, .nav-tab:hover { background: var(--soft-blue); color: var(--accent-dark); }
-    .toast { position: fixed; bottom: 20px; right: 20px; padding: 13px 17px; background: var(--deep); color: var(--on-deep); border-radius: 10px; box-shadow: var(--shadow); opacity: 0; transform: translateY(10px); pointer-events: none; transition: .25s; font-size: 13px; z-index: 20; }
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 13px 17px; border: 1px solid transparent; background-color: var(--deep); background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring); background-origin: padding-box, border-box; background-clip: padding-box, border-box; color: var(--on-deep); border-radius: 10px; box-shadow: var(--shadow); opacity: 0; transform: translateY(10px); pointer-events: none; transition: .25s; font-size: 13px; z-index: 20; }
     .toast.show { opacity: 1; transform: translateY(0); }
     /* --- Экран входа/регистрации --- */
     .auth-layout { display: grid; grid-template-columns: 1fr; max-width: 440px; margin: 0 auto; }
