@@ -50,6 +50,10 @@
       /* Плашки поверх постера белые независимо от темы — у них свой токен. */
       --pill-bg: #fff;
       --pill-ink: #0b1a33;
+      /* Тёмная панель поиска на светлом фоне читается и так, но тонкий
+         градиентный кант даёт ей «стеклянный» край вместо плоской плиты. */
+      --hero-ring: linear-gradient(135deg, rgba(0,170,255,.9), rgba(0,153,255,.18) 38%, rgba(255,255,255,.12) 58%, rgba(0,153,255,.5));
+      --hero-glow: 0 18px 46px -26px rgba(0,153,255,.7);
       --topbar-bg: rgba(248,249,250,.94);
       --shadow: 0 16px 40px rgba(11, 26, 51, .08);
       --shadow-soft: 0 5px 18px rgba(11,26,51,.035);
@@ -83,6 +87,10 @@
       --warn-bg: #3a2f13;
       --unread-bg: #12293d;
       --deep: #070c16;
+      /* На тёмном фоне панель (#070c16) темнее фона (#0d1117) — плоская граница
+         её не разделяет, край приходится подсвечивать градиентом. */
+      --hero-ring: linear-gradient(135deg, rgba(92,181,255,.65), rgba(92,181,255,.12) 42%, rgba(92,181,255,.05) 60%, rgba(92,181,255,.45));
+      --hero-glow: 0 20px 52px -30px rgba(92,181,255,.85), inset 0 1px 0 rgba(255,255,255,.05);
       --topbar-bg: rgba(13,17,23,.92);
       --shadow: 0 16px 40px rgba(0,0,0,.55);
       --shadow-soft: 0 5px 18px rgba(0,0,0,.35);
@@ -132,7 +140,7 @@
     .intro { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 30px; }
     .intro h1 { font-size: clamp(30px, 4vw, 54px); max-width: 720px; line-height: 1.02; }
     .intro p { max-width: 520px; color: var(--muted); line-height: 1.6; margin: 14px 0 0; }
-    .hero-search { background: var(--deep); border-radius: 24px; padding: 26px; color: var(--on-deep); margin-bottom: 28px; display: grid; grid-template-columns: 1.5fr .8fr .8fr auto; gap: 10px; align-items: end; box-shadow: var(--shadow); }
+    .hero-search { border-radius: 24px; padding: 26px; color: var(--on-deep); margin-bottom: 28px; display: grid; grid-template-columns: 1.5fr .8fr .8fr auto; gap: 10px; align-items: end; border: 1px solid transparent; background-color: var(--deep); background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring); background-origin: padding-box, border-box; background-clip: padding-box, border-box; box-shadow: var(--shadow), var(--hero-glow); }
     .hero-search label { display: grid; gap: 7px; color: #aebbd0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
     .hero-search input, .hero-search select { width: 100%; padding: 13px 14px; border: 1px solid #30425e; background: #132542; color: #fff; border-radius: 10px; outline: 0; }
     .hero-search .primary-btn { height: 46px; white-space: nowrap; }
