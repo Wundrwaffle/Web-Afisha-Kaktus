@@ -23,6 +23,7 @@ from .exposure import (
     env_flag,
 )
 from .notifications import generate_reminders, notify_users, staff_ids
+from .legal import register_legal_routes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -826,6 +827,11 @@ def create_app(
         SecurityHeadersMiddleware,
         content_security_policy=CONTENT_SECURITY_POLICY if public_mode else None,
     )
+
+    # Юридические документы по коротким адресам (/terms, /privacy, /cookies,
+    # /recommendations) и /offer → 301 /terms. Регистрируются до static-mount,
+    # иначе публичный режим отдаст по этим адресам 404 из статики.
+    register_legal_routes(app)
 
     if serve_static:
         # Публичный показ отдаёт фронтенд тем же приложением: один адрес вместо
