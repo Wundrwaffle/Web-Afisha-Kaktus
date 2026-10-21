@@ -176,3 +176,5 @@ report.md
 
 # Telegram scratch file (local runtime artifact)
 tg.txt
+# ТЗ v3.0 и юр. документы от заказчика (untracked, реквизиты — в git не идут)
+Temp/
