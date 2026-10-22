@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /docs
+Disallow: /admin
+Clean-param: v&utm_source&utm_medium&utm_campaign&utm_content&utm_term
+
+Sitemap: https://xn--80aaaaj2a8afi1afieff5d.xn--p1ai/sitemap.xml
