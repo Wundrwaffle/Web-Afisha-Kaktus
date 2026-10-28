@@ -377,6 +377,9 @@
     .user-chip .chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .user-chip .role { color: var(--accent-dark); background: var(--soft-blue); border-radius: 99px; padding: 3px 9px; font-size: 11px; font-weight: 800; text-transform: capitalize; }
     .auth-card .primary-btn { width: 100%; margin-top: 6px; }
+    .captcha-slot { margin-bottom: 16px; }
+    .captcha-slot[hidden] { display: none; }
+    .captcha-slot > div { max-width: 100%; overflow: hidden; }
     .cabinet-head { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; box-shadow: var(--shadow); margin-bottom: 18px; }
     .cabinet-head h2 { font-size: 22px; margin: 0 0 5px; }
     .cabinet-head p { color: var(--muted); font-size: 13px; margin: 0; }
@@ -547,13 +550,13 @@
 
     <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="toast('Спасибо, жалоба отправлена')">Пожаловаться</button></div></div></div></section>
 
-    <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1 id="form-title">Добавить событие</h1><p id="form-sub">После отправки событие попадёт на проверку модератору.</p></div></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input id="f-title" placeholder="Например, «Город звучит»"></div><div class="field"><label>Категория *</label><select id="f-category"></select></div><div class="field"><label>Стоимость *</label><input id="f-price" placeholder="Бесплатно или от 350 ₽"></div><div class="field"><label>Дата *</label><input id="f-date" type="date"></div><div class="field"><label>Время начала *</label><input id="f-time" type="time"></div><div class="field full"><label>Место *</label><input id="f-venue" placeholder="Парк Гагарина"></div></div><div class="form-actions"><button class="ghost-btn" onclick="cancelEventForm()">Отмена</button><button class="primary-btn" onclick="submitEventFromForm()" id="f-submit">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Событие попадёт на модерацию</span></div><div class="check"><i>✓</i><span>После одобрения появится в каталоге</span></div><div class="check"><i>✓</i><span>Вы сможете редактировать и снимать событие</span></div><div class="check"><i>✓</i><span>Не более 20 предстоящих событий у организатора</span></div></div></aside></div></div></section>
+    <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1 id="form-title">Добавить событие</h1><p id="form-sub">После отправки событие попадёт на проверку модератору.</p></div></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input id="f-title" placeholder="Например, «Город звучит»"></div><div class="field"><label>Категория *</label><select id="f-category"></select></div><div class="field"><label>Стоимость *</label><input id="f-price" placeholder="Бесплатно или от 350 ₽"></div><div class="field"><label>Дата *</label><input id="f-date" type="date"></div><div class="field"><label>Время начала *</label><input id="f-time" type="time"></div><div class="field full"><label>Место *</label><input id="f-venue" placeholder="Парк Гагарина"></div></div><div class="field full captcha-slot" id="event-captcha-field" data-captcha="event-captcha" hidden><label>Проверка</label><div id="event-captcha"></div></div><div class="form-actions"><button class="ghost-btn" onclick="cancelEventForm()">Отмена</button><button class="primary-btn" onclick="submitEventFromForm()" id="f-submit">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Событие попадёт на модерацию</span></div><div class="check"><i>✓</i><span>После одобрения появится в каталоге</span></div><div class="check"><i>✓</i><span>Вы сможете редактировать и снимать событие</span></div><div class="check"><i>✓</i><span>Не более 20 предстоящих событий у организатора</span></div></div></aside></div></div></section>
 
     <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Модерация</h1><p>Проверяйте новые события и управляйте опубликованными.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px" id="mod-tabs"><button class="chip active" data-mod-status="pending_moderation">На проверке</button><button class="chip" data-mod-status="published">Опубликованные</button><button class="chip" data-mod-status="rejected">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div></div></section>
 
     <section id="admin" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Пользователи и роли</h1><p>Назначайте роли: visitor, organizer, moderator, admin.</p></div></div><div class="panel" id="admin-users-list" style="padding:0"></div></div></section>
 
-    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div style="display:flex;gap:10px;align-items:center"><button class="primary-btn" onclick="handleAddEventClick()">+ Добавить событие</button><button class="ghost-btn" onclick="handleLogout()">Выйти</button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div style="display:flex;gap:10px;align-items:center"><button class="primary-btn" onclick="handleAddEventClick()">+ Добавить событие</button><button class="ghost-btn" onclick="handleLogout()">Выйти</button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
   </main>
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="admin">Админка</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <footer class="site-footer">
@@ -668,7 +671,7 @@
       }
       if (name === 'catalog') applyCatalogFilters();
       if (name === 'calendar') loadCalendar();
-      if (name === 'auth') renderCabinet();
+      if (name === 'auth') { renderCabinet(); showCaptchaSlot('auth-captcha-field', true); }
       if (name === 'moderation') loadModerationQueue();
       if (name === 'admin') loadAdminUsers();
     }
@@ -1421,6 +1424,7 @@
       document.getElementById('f-time').value = '18:00';
       document.getElementById('f-venue').value = '';
       showScreen('form');
+      showCaptchaSlot('event-captcha-field', true);
     }
 
     function openEditForm(event) {
@@ -1436,9 +1440,11 @@
       document.getElementById('f-time').value = event.time;
       document.getElementById('f-venue').value = event.venue;
       showScreen('form');
+      showCaptchaSlot('event-captcha-field', true);
     }
 
     function cancelEventForm() {
+      showCaptchaSlot('event-captcha-field', false);
       const backToModeration = modEditEventId != null;
       editingEventId = null;
       modEditEventId = null;
@@ -1460,6 +1466,16 @@
       }
       const isEdit = editingEventId != null;
       const isModEdit = modEditEventId != null;
+      // Капча на создании и правке своего события. Правка из модерации — действие
+      // сотрудника, её не закрываем.
+      if (!isModEdit) {
+        const token = captchaTokenFor('event-captcha');
+        if (captchaSettings.enabled && !token) {
+          toast('Подтвердите, что вы не робот');
+          return;
+        }
+        if (token) payload.captcha_token = token;
+      }
       const url = isModEdit
         ? `${API_BASE}/moderation/events/${modEditEventId}`
         : (isEdit ? `${API_BASE}/me/events/${editingEventId}` : `${API_BASE}/events`);
@@ -1477,12 +1493,16 @@
         if (response.status === 401) { toast('Нужно войти, чтобы добавлять события'); showScreen('auth'); return; }
         if (response.status === 403) { toast('Недостаточно прав: требуется роль организатора или админа'); return; }
         if (!response.ok) throw new Error(data.detail || 'Не удалось сохранить событие');
+        resetCaptcha('event-captcha');
         toast((isEdit || isModEdit) ? 'Изменения сохранены' : `Событие отправлено на модерацию: ${data.title}`);
+        showCaptchaSlot('event-captcha-field', false);
         editingEventId = null;
         modEditEventId = null;
         showScreen(isModEdit ? 'moderation' : 'auth');
         if (isModEdit) loadModerationQueue();
       } catch (error) {
+        // Токен одноразовый: после ошибки виджет нужно пройти заново.
+        if (!isModEdit) resetCaptcha('event-captcha');
         toast(error.message);
       }
     }
@@ -1879,6 +1899,8 @@
       document.getElementById('f-time').value = event.time;
       document.getElementById('f-venue').value = event.venue;
       showScreen('form');
+      showCaptchaSlot('event-captcha-field', false);
+      showCaptchaSlot('event-captcha-field', true);
     }
 
     // Переключение вкладок модерации
@@ -1941,6 +1963,81 @@
       }
     }
 
+    // ---- Яндекс SmartCaptcha: регистрация, вход, создание/правка события ----
+    // Проверка включается на бэкенде парой ключей: без них /auth/captcha отвечает
+    // enabled:false, внешний скрипт не грузится и формы работают как раньше.
+    // На каждую форму — свой виджет; рисуем лениво, когда форма показана: iframe
+    // в скрытом контейнере получается нулевого размера.
+    // Токен одноразовый (живёт 5 минут), поэтому после ошибки виджет сбрасывается.
+    const SMARTCAPTCHA_SCRIPT = 'https://smartcaptcha.cloud.yandex.ru/captcha.js?render=onload&onload=onSmartCaptchaReady';
+    let captchaSettings = { enabled: false, client_key: '' };
+    const captchaWidgets = {};  // id контейнера -> widgetId
+    const captchaTokens = {};   // id контейнера -> токен прохождения
+
+    async function loadCaptchaSettings() {
+      try {
+        const resp = await fetch(`${API_BASE}/auth/captcha`);
+        if (resp.ok) captchaSettings = await resp.json();
+      } catch (e) { /* без капчи формы работают как раньше */ }
+    }
+
+    function loadSmartCaptchaScript() {
+      if (window.smartCaptcha || document.getElementById('smartcaptcha-script')) return;
+      const script = document.createElement('script');
+      script.id = 'smartcaptcha-script';
+      script.src = SMARTCAPTCHA_SCRIPT;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    function renderCaptchaInto(containerId) {
+      if (!captchaSettings.enabled) return;
+      if (!document.getElementById(containerId)) return;
+      if (captchaWidgets[containerId] !== undefined) return;
+      if (!window.smartCaptcha) { loadSmartCaptchaScript(); return; }
+      captchaWidgets[containerId] = window.smartCaptcha.render(containerId, {
+        sitekey: captchaSettings.client_key,
+        hl: 'ru',
+        callback: (token) => { captchaTokens[containerId] = token; },
+      });
+      try {
+        window.smartCaptcha.subscribe(captchaWidgets[containerId], 'token-expired', () => {
+          captchaTokens[containerId] = '';
+        });
+      } catch (e) { /* подписка не критична */ }
+    }
+
+    // Скрипт Яндекса вызывает эту функцию (onload=onSmartCaptchaReady).
+    function onSmartCaptchaReady() {
+      document.querySelectorAll('.captcha-slot:not([hidden])').forEach((slot) => {
+        if (slot.dataset.captcha) renderCaptchaInto(slot.dataset.captcha);
+      });
+    }
+
+    // Показать/скрыть проверку у формы и отрисовать виджет, если она видна.
+    function showCaptchaSlot(slotId, visible) {
+      const slot = document.getElementById(slotId);
+      if (!slot) return;
+      slot.hidden = !(visible && captchaSettings.enabled);
+      if (!slot.hidden && slot.dataset.captcha) renderCaptchaInto(slot.dataset.captcha);
+    }
+
+    function captchaTokenFor(containerId) {
+      if (!captchaSettings.enabled) return null;
+      if (window.smartCaptcha && captchaWidgets[containerId] !== undefined) {
+        const live = window.smartCaptcha.getResponse(captchaWidgets[containerId]);
+        if (live) captchaTokens[containerId] = live;
+      }
+      return captchaTokens[containerId] || null;
+    }
+
+    function resetCaptcha(containerId) {
+      captchaTokens[containerId] = '';
+      if (window.smartCaptcha && captchaWidgets[containerId] !== undefined) {
+        try { window.smartCaptcha.reset(captchaWidgets[containerId]); } catch (e) { /* виджет мог не отрисоваться */ }
+      }
+    }
+
     function switchAuthMode(mode) {
       const isRegister = mode === 'register';
       document.getElementById('auth-tab-login').classList.toggle('active', !isRegister);
@@ -1951,6 +2048,7 @@
         : 'Введите почту и пароль, чтобы войти в кабинет организатора.';
       document.getElementById('auth-name-field').style.display = isRegister ? 'grid' : 'none';
       document.getElementById('auth-name').required = isRegister;
+      showCaptchaSlot('auth-captcha-field', true);
       document.getElementById('auth-submit').textContent = isRegister ? 'Создать аккаунт' : 'Войти';
       document.getElementById('auth-error').classList.remove('show');
       document.getElementById('auth-password').setAttribute('autocomplete', isRegister ? 'new-password' : 'current-password');
@@ -1978,15 +2076,24 @@
         return;
       }
 
+      // Капча стоит и на входе, и на регистрации; при выключенной проверке
+      // токен не шлём и виджет не показываем.
+      const captchaValue = captchaTokenFor('auth-captcha');
+      if (captchaSettings.enabled && !captchaValue) {
+        showAuthError('Подтвердите, что вы не робот.');
+        return;
+      }
+
       try {
         if (isRegister) {
           const resp = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email, password, full_name: fullName}),
+            body: JSON.stringify({email, password, full_name: fullName, ...(captchaValue ? {captcha_token: captchaValue} : {})}),
           });
           const data = await resp.json();
           if (!resp.ok) throw new Error(data.detail || 'Не удалось зарегистрироваться');
+          resetCaptcha('auth-captcha');
           toast('Аккаунт создан. Теперь войдите.');
           // Переключаемся на вход, подставляя email
           document.getElementById('auth-email').value = email;
@@ -1997,7 +2104,7 @@
         const resp = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({email, password}),
+          body: JSON.stringify({email, password, ...(captchaValue ? {captcha_token: captchaValue} : {})}),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Неверный email или пароль');
@@ -2015,6 +2122,8 @@
         toast(`Добро пожаловать, ${me.full_name || me.email}!`);
         showScreen('home');
       } catch (error) {
+        // Токен капчи одноразовый: после любой ошибки виджет нужно пройти заново.
+        resetCaptcha('auth-captcha');
         showAuthError(error.message);
       }
     }
@@ -2145,6 +2254,7 @@
 
     initLegalLinks();
     initCookieBanner();
+    loadCaptchaSettings();
     loadEvents();
   </script>
 </body>
