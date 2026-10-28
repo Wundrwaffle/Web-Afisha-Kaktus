@@ -55,7 +55,7 @@ def test_download_name_is_human_readable(client, slug):
     name = _download_name(response)
 
     assert name.endswith(".pdf")
-    assert "чтоунастамзавтра.рф" in name
+    assert "чотамзавтра.рф" in name
     # Пока документы не вычитаны, имя обязано кричать, что это заглушка.
     assert "черновик" in name.lower()
 

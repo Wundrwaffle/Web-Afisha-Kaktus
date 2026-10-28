@@ -53,7 +53,7 @@ DOCS: list[tuple[str, str, str, list[str]]] = [
     (
         "terms",
         "Пользовательское соглашение",
-        "Условия использования сайта чтоунастамзавтра.рф и размещения событий.",
+        "Условия использования сайта чотамзавтра.рф и размещения событий.",
         [
             "правила доступа к сайту и регистрации (в том числе через внешние сервисы);",
             "права и обязанности организаторов при размещении событий;",
@@ -191,8 +191,8 @@ def build_doc(slug: str, title: str, purpose: str, bullets: list[str]) -> Path:
         rightMargin=20 * mm,
         topMargin=22 * mm,
         bottomMargin=22 * mm,
-        title=f"{title} — чтоунастамзавтра.рф (черновик)",
-        author="чтоунастамзавтра.рф",
+        title=f"{title} — чотамзавтра.рф (черновик)",
+        author="чотамзавтра.рф",
         subject="Черновик документа",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="body")
@@ -201,7 +201,7 @@ def build_doc(slug: str, title: str, purpose: str, bullets: list[str]) -> Path:
     ])
 
     story: list = [
-        Paragraph("ЧТО У НАС ТАМ ЗАВТРА · чтоунастамзавтра.рф", st["brand"]),
+        Paragraph("ЧТО У НАС ТАМ ЗАВТРА · чотамзавтра.рф", st["brand"]),
         HRFlowable(width="100%", thickness=1, color=LINE, spaceBefore=4, spaceAfter=2),
         Paragraph(title, st["title"]),
         Paragraph(purpose, st["sub"]),
@@ -243,7 +243,7 @@ def build_doc(slug: str, title: str, purpose: str, bullets: list[str]) -> Path:
         HRFlowable(width="100%", thickness=0.5, color=LINE, spaceBefore=6, spaceAfter=6),
         Paragraph(
             "Редакция документа будет опубликована по адресу "
-            f"<font color='#0099ff'>чтоунастамзавтра.рф/{slug}</font>. "
+            f"<font color='#0099ff'>чотамзавтра.рф/{slug}</font>. "
             "До этого момента действует предыдущая опубликованная редакция либо, "
             "если её нет, документ считается не вступившим в силу.",
             st["small"],
