@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .captcha import CAPTCHA_FAILED_MESSAGE, CaptchaConfig, CaptchaVerifier, build_verifier
 from .db import session_dependency
 from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
 from .models import RefreshToken, User
@@ -25,11 +26,17 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=2, max_length=160)
+    # Токен Яндекс SmartCaptcha. Обязателен только когда капча включена ключами;
+    # в dev и тестах поля нет — клиенты, которые о нём не знают, не ломаются.
+    captcha_token: str | None = None
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    # Капча на входе: защищает от перебора паролей ботами. Как и в регистрации,
+    # поле необязательно — при выключенной проверке клиенты о нём не знают.
+    captcha_token: str | None = None
 
 
 class RefreshRequest(BaseModel):
@@ -77,6 +84,8 @@ def build_auth_routes(
     session_factory,
     login_limiter: LoginRateLimiter | None = None,
     register_limiter: SlidingWindowLimiter | None = None,
+    captcha: CaptchaConfig | None = None,
+    captcha_verifier: CaptchaVerifier | None = None,
 ):
     """Собирает auth-эндпоинты с привязкой к session_factory из create_app.
 
@@ -85,9 +94,24 @@ def build_auth_routes(
     (например, в тестах с отдельной БД) пишут в «чужую» базу.
 
     Лимитеры передаются снаружи (создаются в create_app), чтобы состояние не
-    переезжало между приложениями/тестами.
+    переезжало между приложениями/тестами. Капча включается только парой ключей;
+    проверяльщик инжектится в тестах, в проде — обычный HTTP к Яндексу.
     """
     router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+    captcha_enabled = captcha is not None and captcha.enabled
+    if captcha_enabled and captcha_verifier is None:
+        # Забыть проверяльщик при включённых ключах = пропускать всех подряд,
+        # поэтому страхуемся здесь, а не в вызывающем коде.
+        captcha_verifier = build_verifier(captcha)
+
+    def captcha_passed(token: str | None, ip: str) -> bool:
+        """Общая проверка для форм входа и регистрации.
+
+        Пустой токен отсекаем до сети: виджет не пройден, проверять нечего.
+        """
+        value = (token or "").strip()
+        return bool(value) and captcha_verifier.verify(value, ip)
 
     def get_session():
         yield from session_dependency(session_factory)
@@ -147,6 +171,19 @@ def build_auth_routes(
             refresh_token=refresh_raw,
         )
 
+    @router.get("/captcha")
+    def captcha_settings() -> dict[str, object]:
+        """Конфигурация виджета для фронтенда.
+
+        Ключ сервера наружу не отдаётся никогда: он только в окружении и нужен
+        лишь для запроса validate. Без пары ключей фронт узнаёт, что капчи нет,
+        и не грузит внешний скрипт.
+        """
+        return {
+            "enabled": captcha_enabled,
+            "client_key": captcha.client_key if captcha_enabled else "",
+        }
+
     @router.post("/register", response_model=UserOut, status_code=201)
     def register(
         payload: RegisterRequest,
@@ -156,6 +193,12 @@ def build_auth_routes(
         if register_limiter is not None:
             # Защита от массовой регистрации с одного адреса при публичном доступе.
             register_limiter.check(client_ip(request))
+        if captcha_enabled and not captcha_passed(
+            payload.captcha_token, client_ip(request)
+        ):
+            # 400, а не 403: это не отказ в доступе, а непройденная проверка —
+            # фронт сбрасывает виджет и предлагает пройти её заново.
+            raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
         email = payload.email.lower()
         existing = session.scalar(select(User).where(User.email == email))
         if existing is not None:
@@ -189,6 +232,9 @@ def build_auth_routes(
         # Лимит проверяется ДО проверки пароля: иначе перебор не остановить.
         if login_limiter is not None:
             login_limiter.check(ip, email)
+        # Капча — тоже до пароля: бот не должен даже узнавать, есть ли аккаунт.
+        if captcha_enabled and not captcha_passed(payload.captcha_token, ip):
+            raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
         user = session.scalar(select(User).where(User.email == email))
         if user is None or not verify_password(payload.password, user.password_hash):
             if login_limiter is not None:

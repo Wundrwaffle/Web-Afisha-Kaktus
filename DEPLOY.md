@@ -97,6 +97,8 @@ AFISHA_DATABASE_URL=sqlite:////var/lib/afisha/afisha.sqlite3
 AFISHA_SECRET_KEY=<48+ случайных символов, выдаём отдельно>
 AFISHA_PUBLIC_MODE=1
 AFISHA_SERVE_STATIC=1
+AFISHA_SMARTCAPTCHA_CLIENT_KEY=ysc1_...
+AFISHA_SMARTCAPTCHA_SERVER_KEY=ysc2_...
 ```
 
 Три вещи, которые легко сделать неправильно:
@@ -107,6 +109,12 @@ AFISHA_SERVE_STATIC=1
   сессии и refresh-токены (пользователей разлогинит).
 - Путь к БД — с **четырьмя** слэшами (`sqlite:////var/lib/...`): три слэша означают
   относительный путь и файл уедет в рабочий каталог сервиса.
+- **SmartCaptcha** включается только парой ключей из консоли Яндекс Облака. Без них
+  проверка выключена и формы работают как раньше — так код можно выкатить до
+  получения ключей. Домены, на которых капча разрешена, задаются в консоли
+  (punycode: `xn--80aaahx3amvmf1c.xn--p1ai` и `www.`); localhost там не работает,
+  поэтому локально капчу проверяют подменой `AFISHA_SMARTCAPTCHA_VALIDATE_URL` или
+  на живом домене. Ключи — секреты: только в env-файле, не в репозитории.
 
 ### 3. systemd — `/etc/systemd/system/afisha.service`
 

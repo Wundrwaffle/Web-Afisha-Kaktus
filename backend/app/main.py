@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -13,13 +13,21 @@ from sqlalchemy.orm import Session
 from .db import Base, build_engine, build_session_factory, session_dependency
 from .models import Event, Favorite, Notification, User
 from .auth import build_auth_routes
+from .captcha import (
+    CAPTCHA_FAILED_MESSAGE,
+    CaptchaConfig,
+    CaptchaVerifier,
+    build_verifier,
+    config_from_env,
+)
 from .exposure import (
-    CONTENT_SECURITY_POLICY,
     GATE_EXEMPT_PATHS,
     BasicGateMiddleware,
     LoginRateLimiter,
     SecurityHeadersMiddleware,
     SlidingWindowLimiter,
+    build_content_security_policy,
+    client_ip,
     env_flag,
 )
 from .notifications import generate_reminders, notify_users, staff_ids
@@ -62,6 +70,8 @@ DEMO_EVENTS = [
 
 
 class EventCreate(BaseModel):
+    # Токен капчи: в модель события не попадает (exclude), нужен только проверке.
+    captcha_token: str | None = Field(default=None, exclude=True)
     title: str = Field(min_length=3, max_length=160)
     slug: str = Field(min_length=3, max_length=180, pattern=r"^[a-z0-9-]+$")
     category: str = Field(min_length=2, max_length=80)
@@ -104,6 +114,8 @@ def create_app(
     serve_static: bool | None = None,
     gate_user: str | None = None,
     gate_password: str | None = None,
+    captcha_config: CaptchaConfig | None = None,
+    captcha_verifier: CaptchaVerifier | None = None,
 ) -> FastAPI:
     # Параметры публичного режима: явный аргумент (удобно в тестах) или окружение.
     if public_mode is None:
@@ -114,6 +126,25 @@ def create_app(
         gate_user = os.environ.get("AFISHA_GATE_USER", "afisha")
     if gate_password is None:
         gate_password = os.environ.get("AFISHA_GATE_PASSWORD") or None
+    # Капча включается парой ключей из окружения; проверяльщик подменяется в тестах.
+    if captcha_config is None:
+        captcha_config = config_from_env()
+    if captcha_config.enabled and captcha_verifier is None:
+        captcha_verifier = build_verifier(captcha_config)
+
+    def require_captcha(token: str | None, request: Request) -> None:
+        """Проверка капчи для действий, которые создают данные (события).
+
+        Регистрация и вход проверяются в auth.py тем же проверяльщиком; здесь —
+        создание события и правка своего события. Действия модератора и админа
+        капчей не закрываем: это уже авторизованные сотрудники.
+        """
+        if not captcha_config.enabled:
+            return
+        value = (token or "").strip()
+        if value and captcha_verifier.verify(value, client_ip(request)):
+            return
+        raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
 
     engine = build_engine(database_url)
     Base.metadata.create_all(engine)
@@ -190,6 +221,8 @@ def create_app(
         session_factory,
         login_limiter=login_limiter,
         register_limiter=register_limiter,
+        captcha=captcha_config,
+        captcha_verifier=captcha_verifier,
     )
     app.include_router(auth["router"])
     get_current_user = auth["get_current_user"]
@@ -202,9 +235,11 @@ def create_app(
     @app.post("/api/v1/events", status_code=201)
     def create_event(
         payload: EventCreate,
+        request: Request,
         session: Session = Depends(get_session),
         current_user: User = Depends(require_role("organizer", "admin")),
     ) -> dict[str, object]:
+        require_captcha(payload.captcha_token, request)
         # Лимит на число предстоящих (не прошедших) событий организатора.
         active_count = session.scalar(
             select(func.count())
@@ -365,6 +400,7 @@ def create_app(
         return {"items": items, "total": len(items)}
 
     class EventUpdate(BaseModel):
+        captcha_token: str | None = Field(default=None, exclude=True)
         title: str | None = Field(default=None, min_length=3, max_length=160)
         slug: str | None = Field(default=None, min_length=3, max_length=180, pattern=r"^[a-z0-9-]+$")
         category: str | None = Field(default=None, min_length=2, max_length=80)
@@ -385,9 +421,11 @@ def create_app(
     def update_event(
         event_id: int,
         payload: EventUpdate,
+        request: Request,
         session: Session = Depends(get_session),
         current_user: User = Depends(require_role("organizer", "admin")),
     ) -> dict[str, object]:
+        require_captcha(payload.captcha_token, request)
         event = _get_own_event(session, event_id, current_user)
         changes = payload.model_dump(exclude_unset=True)
         if not changes:
@@ -825,7 +863,11 @@ def create_app(
         )
     app.add_middleware(
         SecurityHeadersMiddleware,
-        content_security_policy=CONTENT_SECURITY_POLICY if public_mode else None,
+        content_security_policy=(
+            build_content_security_policy(smartcaptcha=captcha_config.enabled)
+            if public_mode
+            else None
+        ),
     )
 
     # Юридические документы по коротким адресам (/terms, /privacy, /cookies,

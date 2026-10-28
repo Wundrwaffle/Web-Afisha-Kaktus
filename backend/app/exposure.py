@@ -47,17 +47,37 @@ SECURITY_HEADERS = {
 # Фронтенд — один index.html с инлайновыми <script>/<style>, поэтому 'unsafe-inline'
 # неизбежен без сборки. Это осознанный компромисс для прототипа: CSP здесь защищает
 # от подгрузки внешних скриптов, но не от инъекции в сам документ (см. SECURITY.md).
-CONTENT_SECURITY_POLICY = "; ".join([
-    "default-src 'self'",
-    "base-uri 'self'",
-    "object-src 'none'",
-    "frame-ancestors 'none'",
-    "img-src 'self' data: https:",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "script-src 'self' 'unsafe-inline'",
-    "connect-src 'self'",
-])
+#
+# SmartCaptcha — единственный внешний скрипт: виджет грузится с домена Яндекса и
+# рисует задание в iframe. Пока капча выключена (нет ключей), её хостов в политике
+# нет — политика остаётся максимально узкой.
+SMARTCAPTCHA_ORIGIN = "https://smartcaptcha.cloud.yandex.ru"
+
+
+def build_content_security_policy(*, smartcaptcha: bool = False) -> str:
+    directives = [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "img-src 'self' data: https:",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "script-src 'self' 'unsafe-inline'",
+        "connect-src 'self'",
+    ]
+    if smartcaptcha:
+        script_index = directives.index("script-src 'self' 'unsafe-inline'")
+        connect_index = directives.index("connect-src 'self'")
+        directives[script_index] += f" {SMARTCAPTCHA_ORIGIN}"
+        directives[connect_index] += f" {SMARTCAPTCHA_ORIGIN}"
+        # Виджет проверки — iframe с домена Яндекса; без явного frame-src его
+        # срезал бы default-src 'self'.
+        directives.append(f"frame-src {SMARTCAPTCHA_ORIGIN}")
+    return "; ".join(directives)
+
+
+CONTENT_SECURITY_POLICY = build_content_security_policy()
 
 TOO_MANY_REQUESTS_MESSAGE = "Слишком много попыток. Повторите позже."
 
