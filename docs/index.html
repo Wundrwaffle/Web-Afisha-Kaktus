@@ -380,6 +380,9 @@
     .captcha-slot { margin-bottom: 16px; }
     .captcha-slot[hidden] { display: none; }
     .captcha-slot > div { max-width: 100%; overflow: hidden; }
+    .captcha-fallback { margin-top: 8px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+    .captcha-fallback p { margin: 0 0 8px; }
+    .captcha-fallback .ghost-btn { padding: 8px 12px; font-size: 12px; }
     .cabinet-head { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; box-shadow: var(--shadow); margin-bottom: 18px; }
     .cabinet-head h2 { font-size: 22px; margin: 0 0 5px; }
     .cabinet-head p { color: var(--muted); font-size: 13px; margin: 0; }
@@ -1996,13 +1999,53 @@
       } catch (e) { /* без капчи формы работают как раньше */ }
     }
 
+    // Виджет живёт на чужом домене, и его часто режет блокировщик рекламы или
+    // защита от трекеров (Firefox ETP). Тогда window.smartCaptcha не появляется и
+    // проверка «просто не отображается» — без подсказки человек не поймёт, почему
+    // форма не отправляется. Поэтому ловим и onerror, и таймаут на загрузку.
+    let captchaLoadTimer = null;
+
     function loadSmartCaptchaScript() {
-      if (window.smartCaptcha || document.getElementById('smartcaptcha-script')) return;
+      if (window.smartCaptcha) return;
+      if (document.getElementById('smartcaptcha-script')) return;
       const script = document.createElement('script');
       script.id = 'smartcaptcha-script';
       script.src = SMARTCAPTCHA_SCRIPT;
       script.defer = true;
+      script.onerror = () => onCaptchaScriptFailed();
       document.head.appendChild(script);
+      clearTimeout(captchaLoadTimer);
+      captchaLoadTimer = setTimeout(() => {
+        if (!window.smartCaptcha) onCaptchaScriptFailed();
+      }, 6000);
+    }
+
+    function onCaptchaScriptFailed() {
+      document.querySelectorAll('.captcha-slot:not([hidden])').forEach((slot) => {
+        if (slot.dataset.captcha) showCaptchaFallback(slot.dataset.captcha);
+      });
+    }
+
+    function showCaptchaFallback(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container || document.getElementById(containerId + '-fallback')) return;
+      const box = document.createElement('div');
+      box.id = containerId + '-fallback';
+      box.className = 'captcha-fallback';
+      const text = document.createElement('p');
+      text.textContent = 'Проверка не загрузилась. Обычно её блокирует расширение (Adblock, Ghostery) или защита от трекеров в браузере — отключите блокировщик для этого сайта и нажмите «Повторить».';
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'ghost-btn';
+      retry.textContent = 'Повторить';
+      retry.addEventListener('click', () => {
+        const old = document.getElementById('smartcaptcha-script');
+        if (old) old.remove();
+        box.remove();
+        loadSmartCaptchaScript();
+      });
+      box.append(text, retry);
+      container.after(box);
     }
 
     function renderCaptchaInto(containerId) {
@@ -2010,6 +2053,8 @@
       if (!document.getElementById(containerId)) return;
       if (captchaWidgets[containerId] !== undefined) return;
       if (!window.smartCaptcha) { loadSmartCaptchaScript(); return; }
+      const fallback = document.getElementById(containerId + '-fallback');
+      if (fallback) fallback.remove();
       captchaWidgets[containerId] = window.smartCaptcha.render(containerId, {
         sitekey: captchaSettings.client_key,
         hl: 'ru',
