@@ -447,7 +447,9 @@
       .cabinet-head h2 { font-size: 20px; }
       .cabinet-actions { width: 100%; }
       .cabinet-actions .btn-label { display: none; }
-      .cabinet-actions .primary-btn, .cabinet-actions .ghost-btn { width: 44px; min-height: 44px; padding: 0; }
+      /* «+» тянется на всю строку, «Выйти» остаётся квадратом справа */
+      .cabinet-actions .primary-btn { flex: 1 1 auto; min-width: 44px; min-height: 44px; padding: 0; }
+      .cabinet-actions .ghost-btn { flex: 0 0 auto; width: 44px; min-height: 44px; padding: 0; }
     }
     @media (max-width: 560px) {
       .shell { width: min(100% - 24px, 1240px); }
