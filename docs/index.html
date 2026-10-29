@@ -380,6 +380,22 @@
     .captcha-slot { margin-bottom: 16px; }
     .captcha-slot[hidden] { display: none; }
     .captcha-slot > div { max-width: 100%; overflow: hidden; }
+    /* --- Быстрый вход через внешние сервисы (Яндекс ID) --- */
+    /* Блок появляется только когда провайдер настроен на бэкенде: без ключей
+       /auth/oauth/providers отдаёт пустой список, и блока нет вовсе — «серых»
+       нерабочих кнопок быть не должно. */
+    .oauth-block { margin-bottom: 22px; }
+    .oauth-block[hidden] { display: none; }
+    .oauth-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 12px; padding: 12px 16px; font-family: inherit; font-weight: 700; font-size: 14px; white-space: nowrap; cursor: pointer; transition: .15s ease; }
+    .oauth-btn + .oauth-btn { margin-top: 10px; }
+    .oauth-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+    .oauth-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* Метка провайдера — фирменный цвет сервиса, он не зависит от темы. */
+    .oauth-mark { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: #fc3f1d; color: #fff; font: 800 15px/1 Montserrat, sans-serif; }
+    /* Разделитель «или»: главный путь — кнопка провайдера, но почта с паролем
+       остаются равноправным вариантом, а не спрятанной ссылкой. */
+    .oauth-sep { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--muted); font-size: 12px; }
+    .oauth-sep::before, .oauth-sep::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--line); }
     .captcha-fallback { margin-top: 8px; font-size: 12px; line-height: 1.5; color: var(--muted); }
     .captcha-fallback p { margin: 0 0 8px; }
     /* Повтор проверки — ссылка по центру, а не кнопка: под ползунком она не
@@ -591,7 +607,7 @@
 
     <section id="admin" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Пользователи и роли</h1><p>Назначайте роли: visitor, organizer, moderator, admin.</p></div></div><div class="panel" id="admin-users-list" style="padding:0"></div></div></section>
 
-    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div class="cabinet-actions"><button class="primary-btn" onclick="handleAddEventClick()" title="Добавить событие" aria-label="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button><button class="ghost-btn" onclick="handleLogout()" title="Выйти" aria-label="Выйти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 7l-4 5 4 5M6 12h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="btn-label">Выйти</span></button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card"><div class="oauth-block" id="oauth-block" hidden><div id="oauth-buttons"></div><div class="oauth-sep"><span>или почта и пароль</span></div></div><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div class="cabinet-actions"><button class="primary-btn" onclick="handleAddEventClick()" title="Добавить событие" aria-label="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button><button class="ghost-btn" onclick="handleLogout()" title="Выйти" aria-label="Выйти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 7l-4 5 4 5M6 12h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="btn-label">Выйти</span></button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
   </main>
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="admin">Админка</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <footer class="site-footer">
@@ -1634,6 +1650,15 @@
       return ({pending_moderation: 'На проверке', published: 'Опубликовано', rejected: 'Отклонено', draft: 'Снято с публикации'})[status] || status;
     }
     let cabinetTab = 'my';
+    // Подпись кабинета: имя · роль · способ входа. Способ входа приходит из
+    // /auth/me (`identities`): у аккаунта, созданного через Яндекс, пароля нет,
+    // и человек должен видеть, чем он входит.
+    function cabinetSubtitle(user) {
+      const labels = {yandex: 'Яндекс', vk: 'VK ID'};
+      const methods = (user.identities || []).map((id) => labels[id] || id);
+      const suffix = methods.length ? ` · вход через ${methods.join(', ')}` : '';
+      return `${user.full_name || user.email} · роль ${user.role}${suffix}`;
+    }
     function renderCabinet() {
       const user = getStoredUser();
       const layout = document.getElementById('auth-layout');
@@ -1641,7 +1666,7 @@
       if (!user) { layout.style.display = ''; cabinet.style.display = 'none'; return; }
       layout.style.display = 'none';
       cabinet.style.display = '';
-      document.getElementById('cabinet-sub').textContent = `${user.full_name || user.email} · роль ${user.role}`;
+      document.getElementById('cabinet-sub').textContent = cabinetSubtitle(user);
       const canCreate = user.role === 'organizer' || user.role === 'admin';
       const myTab = document.querySelector('#cabinet-tabs [data-tab="my"]');
       if (myTab) myTab.style.display = canCreate ? '' : 'none';
@@ -2268,6 +2293,99 @@
     document.getElementById('auth-tab-login').addEventListener('click', () => switchAuthMode('login'));
     document.getElementById('auth-tab-register').addEventListener('click', () => switchAuthMode('register'));
 
+    // ---- Быстрый вход через внешние сервисы (Яндекс ID) ----
+    // Кнопки рисуются ровно по ответу /auth/oauth/providers: без ключей на
+    // бэкенде список пуст, блока нет вовсе. Под Basic-гейтом публичного показа
+    // бэкенд тоже отдаёт пусто — иначе гость после возврата упёрся бы в пароль.
+    let oauthProviders = [];
+
+    async function loadOAuthProviders() {
+      try {
+        const resp = await fetch(`${API_BASE}/auth/oauth/providers`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        oauthProviders = Array.isArray(data) ? data : [];
+      } catch (e) { return; }  // сеть недоступна — вход по паролю работает как раньше
+      renderOAuthButtons();
+    }
+
+    function renderOAuthButtons() {
+      const block = document.getElementById('oauth-block');
+      const holder = document.getElementById('oauth-buttons');
+      if (!block || !holder) return;
+      if (!oauthProviders.length) { block.hidden = true; holder.innerHTML = ''; return; }
+      // Иконка — наш глиф, а не SDK провайдера: сторонний скрипт на странице
+      // срезается блокировщиком, и кнопка исчезала бы молча (как было с капчей).
+      holder.innerHTML = oauthProviders.map((p) => `
+        <button type="button" class="oauth-btn" data-provider="${escapeHtml(p.id)}" title="Продолжить с ${escapeHtml(p.title)}">
+          <span class="oauth-mark" aria-hidden="true">Я</span>
+          <span>Продолжить с ${escapeHtml(p.title)}</span>
+        </button>`).join('');
+      holder.querySelectorAll('.oauth-btn').forEach((btn) => {
+        btn.addEventListener('click', () => startOAuth(btn.dataset.provider));
+      });
+      block.hidden = false;
+    }
+
+    function startOAuth(providerId) {
+      // Серверный redirect: секрет приложения живёт только на сервере, а после
+      // подтверждения провайдер вернёт человека сюда же с handoff-кодом.
+      window.location.href = `${API_BASE}/auth/oauth/${encodeURIComponent(providerId)}/start`;
+    }
+
+    // Тексты отказов: причина приходит кодом (reason), а не текстом провайдера —
+    // чужой текст в интерфейс не пускаем.
+    const OAUTH_ERRORS = {
+      access_denied: 'Вход через Яндекс отменён. Можно войти по почте и паролю.',
+      email_taken: 'Аккаунт с этой почтой уже существует — войдите по почте и паролю.',
+      account_inactive: 'Этот аккаунт отключён. Напишите администратору сайта.',
+      provider_failed: 'Не удалось получить ответ от Яндекса. Попробуйте ещё раз.',
+    };
+
+    // Возврат от провайдера: ?oauth=ok&handoff=… меняем на нашу пару токенов;
+    // ?oauth=error&reason=… показываем человеческим текстом. Адрес чистим —
+    // одноразовый код не должен остаться в истории браузера и в Referer.
+    async function handleOAuthReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('oauth');
+      if (!status) return;
+      const handoff = params.get('handoff');
+      const reason = params.get('reason');
+      const kept = new URLSearchParams();
+      if (params.get('api')) kept.set('api', params.get('api'));
+      const query = kept.toString();
+      history.replaceState({}, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+      showScreen('auth');
+      if (status !== 'ok' || !handoff) {
+        showAuthError(OAUTH_ERRORS[reason] || OAUTH_ERRORS.provider_failed);
+        return;
+      }
+      try {
+        const resp = await fetch(`${API_BASE}/auth/oauth/exchange`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({handoff}),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось завершить вход. Попробуйте ещё раз.');
+        const meResp = await fetch(`${API_BASE}/auth/me`, {
+          headers: {'X-Auth-Token': `${data.access_token}`},
+        });
+        if (!meResp.ok) throw new Error('Не удалось загрузить профиль');
+        const me = await meResp.json();
+        setSession(data.access_token, data.refresh_token, me);
+        await loadFavorites();
+        updateNotifBadge();
+        // Прошлая проверка «я не робот» к OAuth-входу отношения не имеет —
+        // не оставляем её пройденной на форме следующего человека.
+        resetCaptcha('auth-captcha');
+        toast(`Добро пожаловать, ${me.full_name || me.email}!`);
+        showScreen('home');
+      } catch (error) {
+        showAuthError(error.message);
+      }
+    }
+
     function showAuthError(msg) {
       const el = document.getElementById('auth-error');
       el.textContent = msg;
@@ -2387,7 +2505,9 @@
     }
     // Обещание восстановления сессии. Обработчики, которым нужна роль, ждут
     // его, а не гадают по localStorage в момент клика.
-    const sessionReady = restoreSession();
+    // Возврат от провайдера обрабатываем ДО восстановления: иначе старый токен
+    // успеет «войти» и на миг покажет кабинет прежним человеком.
+    const sessionReady = handleOAuthReturn().then(() => restoreSession());
 
     // === Тема оформления ===
     // Свой выбор хранится в localStorage и перебивает системный; пока выбора нет —
@@ -2480,6 +2600,7 @@
     initLegalLinks();
     initCookieBanner();
     loadCaptchaSettings();
+    loadOAuthProviders();
     loadEvents();
   </script>
 </body>
