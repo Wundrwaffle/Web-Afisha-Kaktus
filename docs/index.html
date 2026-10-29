@@ -1613,7 +1613,11 @@
       }
     }
 
-    function handleAddEventClick() {
+    async function handleAddEventClick() {
+      // Профиль приходит запросом /auth/me сразу после загрузки страницы.
+      // Без ожидания клик в первые сотни миллисекунд уводил залогиненного
+      // человека на форму входа или врал про роль «посетитель».
+      await sessionReady;
       if (!getAccessToken()) { showScreen('auth'); return; }
       if (!isAllowedToCreate()) {
         toast(`Ваша роль — «${currentRole() || 'посетитель'}». Добавлять события могут организаторы и админы.`);
@@ -2365,18 +2369,25 @@
           headers: {'X-Auth-Token': `${access}`},
         });
         if (resp.ok) {
-          setSession(access, localStorage.getItem('afisha_refresh_token'), await resp.json());
+          const profile = await resp.json();
+          // Пока запрос летел, человек мог выйти — сессию не воскрешаем.
+          if (getAccessToken() !== access) return;
+          setSession(access, localStorage.getItem('afisha_refresh_token'), profile);
           await loadFavorites();
           updateNotifBadge();
-        } else {
-          clearSession();
+        } else if (resp.status === 401 || resp.status === 403) {
+          // Гасим сессию только по явному отказу в доступе. 500/502 от прокси —
+          // это «сервер прилёг», а не «вас разлогинили»: токен остаётся.
+          if (getAccessToken() === access) clearSession();
         }
       } catch (e) {
         // Сеть недоступна — оставляем сохранённого пользователя.
         renderAuthState();
       }
     }
-    restoreSession();
+    // Обещание восстановления сессии. Обработчики, которым нужна роль, ждут
+    // его, а не гадают по localStorage в момент клика.
+    const sessionReady = restoreSession();
 
     // === Тема оформления ===
     // Свой выбор хранится в localStorage и перебивает системный; пока выбора нет —
