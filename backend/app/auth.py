@@ -8,7 +8,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .captcha import CAPTCHA_FAILED_MESSAGE, CaptchaConfig, CaptchaVerifier, build_verifier
+from . import local_captcha
+from .captcha import (
+    CAPTCHA_FAILED_MESSAGE,
+    CaptchaConfig,
+    CaptchaVerifier,
+    build_verifier,
+    check_captcha,
+)
 from .db import session_dependency
 from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
 from .models import RefreshToken, User
@@ -29,6 +36,10 @@ class RegisterRequest(BaseModel):
     # Токен Яндекс SmartCaptcha. Обязателен только когда капча включена ключами;
     # в dev и тестах поля нет — клиенты, которые о нём не знают, не ломаются.
     captcha_token: str | None = None
+    # Своя капча вместо виджета: задание и найденное к нему число. Приходят,
+    # когда скрипт Яндекса не загрузился (блокировщик, защита от трекеров).
+    captcha_local_token: str | None = None
+    captcha_local_nonce: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -37,6 +48,9 @@ class LoginRequest(BaseModel):
     # Капча на входе: защищает от перебора паролей ботами. Как и в регистрации,
     # поле необязательно — при выключенной проверке клиенты о нём не знают.
     captcha_token: str | None = None
+    # Пара своей капчи — замена виджета, если тот заблокирован.
+    captcha_local_token: str | None = None
+    captcha_local_nonce: str | None = None
 
 
 class RefreshRequest(BaseModel):
@@ -105,13 +119,29 @@ def build_auth_routes(
         # поэтому страхуемся здесь, а не в вызывающем коде.
         captcha_verifier = build_verifier(captcha)
 
-    def captcha_passed(token: str | None, ip: str) -> bool:
+    # Задание своей капчи выдаётся по запросу: без лимита это бесплатный способ
+    # забить таблицу строками. Щедро — человеку хватает одного-двух заданий.
+    challenge_limiter = SlidingWindowLimiter(
+        limit=60,
+        window_seconds=600,
+        message="Слишком много запросов проверки. Подождите немного.",
+    )
+
+    def captcha_passed(payload: BaseModel, ip: str, session: Session) -> bool:
         """Общая проверка для форм входа и регистрации.
 
-        Пустой токен отсекаем до сети: виджет не пройден, проверять нечего.
+        Порядок: сначала токен виджета Яндекса, затем пара своей капчи. Если
+        виджет не загрузился (его срезал блокировщик), человек прошёл нашу
+        проверку — этого достаточно, чтобы отправить форму.
         """
-        value = (token or "").strip()
-        return bool(value) and captcha_verifier.verify(value, ip)
+        return check_captcha(
+            captcha_verifier,
+            session,
+            smart_token=getattr(payload, "captcha_token", None),
+            local_token=getattr(payload, "captcha_local_token", None),
+            local_nonce=getattr(payload, "captcha_local_nonce", None),
+            ip=ip,
+        )
 
     def get_session():
         yield from session_dependency(session_factory)
@@ -178,11 +208,35 @@ def build_auth_routes(
         Ключ сервера наружу не отдаётся никогда: он только в окружении и нужен
         лишь для запроса validate. Без пары ключей фронт узнаёт, что капчи нет,
         и не грузит внешний скрипт.
+
+        `local_fallback` — наша капча. Она включается не отдельной настройкой,
+        а самим фактом включённой проверки: это замена виджета для тех, кому
+        блокировщик срезал скрипт Яндекса, а не второй уровень защиты.
         """
         return {
             "enabled": captcha_enabled,
             "client_key": captcha.client_key if captcha_enabled else "",
+            "local_fallback": captcha_enabled,
         }
+
+    @router.post("/captcha/challenge")
+    def captcha_challenge(
+        request: Request,
+        session: Session = Depends(get_session),
+    ) -> dict[str, object]:
+        """Задание своей капчи: токен + сколько нулей должен дать SHA-256.
+
+        Вызывается с фронта, когда внешний виджет не загрузился. При выключенной
+        капче отвечаем 404: формам в этом режиме проверка не нужна, и лишний
+        публичный эндпоинт ни к чему.
+        """
+        if not captcha_enabled:
+            raise HTTPException(status_code=404, detail="Captcha is disabled")
+        ip = client_ip(request)
+        # Лимит до выдачи: иначе один скрипт наполнит таблицу заданиями.
+        challenge_limiter.check(ip)
+        challenge_limiter.hit(ip)
+        return local_captcha.issue(session, ip)
 
     @router.post("/register", response_model=UserOut, status_code=201)
     def register(
@@ -194,7 +248,7 @@ def build_auth_routes(
             # Защита от массовой регистрации с одного адреса при публичном доступе.
             register_limiter.check(client_ip(request))
         if captcha_enabled and not captcha_passed(
-            payload.captcha_token, client_ip(request)
+            payload, client_ip(request), session
         ):
             # 400, а не 403: это не отказ в доступе, а непройденная проверка —
             # фронт сбрасывает виджет и предлагает пройти её заново.
@@ -233,7 +287,7 @@ def build_auth_routes(
         if login_limiter is not None:
             login_limiter.check(ip, email)
         # Капча — тоже до пароля: бот не должен даже узнавать, есть ли аккаунт.
-        if captcha_enabled and not captcha_passed(payload.captcha_token, ip):
+        if captcha_enabled and not captcha_passed(payload, ip, session):
             raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
         user = session.scalar(select(User).where(User.email == email))
         if user is None or not verify_password(payload.password, user.password_hash):

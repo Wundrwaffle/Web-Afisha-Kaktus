@@ -68,6 +68,26 @@ class Favorite(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
 
 
+class LocalCaptchaChallenge(Base):
+    """Задание своей капчи (замена виджета, когда тот заблокирован).
+
+    Хранится в БД, а не в памяти процесса: задание должно переживать перезапуск
+    и быть видимым всем воркерам, иначе решение отвергнется «через шаг».
+    Строка одноразовая (used_at) и живёт 5 минут.
+    """
+
+    __tablename__ = "local_captcha_challenges"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Сколько ведущих шестнадцатеричных нулей требует решение.
+    difficulty: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow, index=True
+    )
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class Notification(Base):
     """Уведомление в личный кабинет. Одно событие может породить несколько
     уведомлений одному пользователю (например, отклонено дважды) — поэтому

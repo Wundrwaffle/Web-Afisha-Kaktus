@@ -114,3 +114,31 @@ class CaptchaVerifier:
             # message — только для диагностики: сравнивать его в коде нельзя.
             logger.warning("SmartCaptcha отклонила токен: %s", message)
         return False
+
+
+def check_captcha(
+    verifier: "CaptchaVerifier | None",
+    session,
+    *,
+    smart_token: str | None = None,
+    local_token: str | None = None,
+    local_nonce: str | None = None,
+    ip: str | None = None,
+) -> bool:
+    """Прохождение проверки любым из двух способов.
+
+    Сначала обычный путь — токен виджета Яндекса. Если токена нет (скрипт
+    срезал блокировщик), принимаем решение своей капчи из `local_captcha`.
+    Оба варианта одноразовые, поэтому порядок проверки ничего не ослабляет:
+    важно только, что человек заплатил за прохождение — вниманием или
+    вычислениями.
+    """
+    from . import local_captcha
+
+    value = (smart_token or "").strip()
+    if value and verifier is not None and verifier.verify(value, ip):
+        return True
+    if (local_token or "").strip() and (local_nonce or "").strip():
+        return local_captcha.verify(session, local_token, local_nonce, ip)
+    return False
+

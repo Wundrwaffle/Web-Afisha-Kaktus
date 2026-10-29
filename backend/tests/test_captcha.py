@@ -42,7 +42,7 @@ def test_captcha_disabled_without_keys(tmp_path):
         response = _register(client)
 
     assert config.status_code == 200
-    assert config.json() == {"enabled": False, "client_key": ""}
+    assert config.json() == {"enabled": False, "client_key": "", "local_fallback": False}
     assert response.status_code == 201
 
 
@@ -52,7 +52,7 @@ def test_captcha_config_exposes_client_key_only(tmp_path):
     with TestClient(app) as client:
         config = client.get("/api/v1/auth/captcha").json()
 
-    assert config == {"enabled": True, "client_key": "ysc1_test"}
+    assert config == {"enabled": True, "client_key": "ysc1_test", "local_fallback": True}
     # Ключ сервера наружу не отдаём ни в каком виде.
     assert "ysc2_test" not in str(config)
 

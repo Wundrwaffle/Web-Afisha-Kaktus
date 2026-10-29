@@ -18,6 +18,7 @@ from .captcha import (
     CaptchaConfig,
     CaptchaVerifier,
     build_verifier,
+    check_captcha,
     config_from_env,
 )
 from .exposure import (
@@ -72,6 +73,9 @@ DEMO_EVENTS = [
 class EventCreate(BaseModel):
     # Токен капчи: в модель события не попадает (exclude), нужен только проверке.
     captcha_token: str | None = Field(default=None, exclude=True)
+    # Пара своей капчи — замена виджета, когда его срезал блокировщик.
+    captcha_local_token: str | None = Field(default=None, exclude=True)
+    captcha_local_nonce: str | None = Field(default=None, exclude=True)
     title: str = Field(min_length=3, max_length=160)
     slug: str = Field(min_length=3, max_length=180, pattern=r"^[a-z0-9-]+$")
     category: str = Field(min_length=2, max_length=80)
@@ -132,17 +136,23 @@ def create_app(
     if captcha_config.enabled and captcha_verifier is None:
         captcha_verifier = build_verifier(captcha_config)
 
-    def require_captcha(token: str | None, request: Request) -> None:
+    def require_captcha(payload: BaseModel, request: Request, session: Session) -> None:
         """Проверка капчи для действий, которые создают данные (события).
 
-        Регистрация и вход проверяются в auth.py тем же проверяльщиком; здесь —
+        Регистрация и вход проверяются в auth.py тем же способом; здесь —
         создание события и правка своего события. Действия модератора и админа
         капчей не закрываем: это уже авторизованные сотрудники.
         """
         if not captcha_config.enabled:
             return
-        value = (token or "").strip()
-        if value and captcha_verifier.verify(value, client_ip(request)):
+        if check_captcha(
+            captcha_verifier,
+            session,
+            smart_token=getattr(payload, "captcha_token", None),
+            local_token=getattr(payload, "captcha_local_token", None),
+            local_nonce=getattr(payload, "captcha_local_nonce", None),
+            ip=client_ip(request),
+        ):
             return
         raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
 
@@ -239,7 +249,7 @@ def create_app(
         session: Session = Depends(get_session),
         current_user: User = Depends(require_role("organizer", "admin")),
     ) -> dict[str, object]:
-        require_captcha(payload.captcha_token, request)
+        require_captcha(payload, request, session)
         # Лимит на число предстоящих (не прошедших) событий организатора.
         active_count = session.scalar(
             select(func.count())
@@ -401,6 +411,8 @@ def create_app(
 
     class EventUpdate(BaseModel):
         captcha_token: str | None = Field(default=None, exclude=True)
+        captcha_local_token: str | None = Field(default=None, exclude=True)
+        captcha_local_nonce: str | None = Field(default=None, exclude=True)
         title: str | None = Field(default=None, min_length=3, max_length=160)
         slug: str | None = Field(default=None, min_length=3, max_length=180, pattern=r"^[a-z0-9-]+$")
         category: str | None = Field(default=None, min_length=2, max_length=80)
@@ -425,7 +437,7 @@ def create_app(
         session: Session = Depends(get_session),
         current_user: User = Depends(require_role("organizer", "admin")),
     ) -> dict[str, object]:
-        require_captcha(payload.captcha_token, request)
+        require_captcha(payload, request, session)
         event = _get_own_event(session, event_id, current_user)
         changes = payload.model_dump(exclude_unset=True)
         if not changes:
