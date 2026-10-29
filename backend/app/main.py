@@ -33,6 +33,7 @@ from .exposure import (
 )
 from .notifications import generate_reminders, notify_users, staff_ids
 from .legal import register_legal_routes
+from .oauth import OAuthConfig, build_oauth_routes, config_from_env as oauth_config_from_env
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -120,6 +121,8 @@ def create_app(
     gate_password: str | None = None,
     captcha_config: CaptchaConfig | None = None,
     captcha_verifier: CaptchaVerifier | None = None,
+    oauth_config: OAuthConfig | None = None,
+    oauth_providers=None,
 ) -> FastAPI:
     # Параметры публичного режима: явный аргумент (удобно в тестах) или окружение.
     if public_mode is None:
@@ -135,6 +138,9 @@ def create_app(
         captcha_config = config_from_env()
     if captcha_config.enabled and captcha_verifier is None:
         captcha_verifier = build_verifier(captcha_config)
+    # OAuth включается парой ключей провайдера; без них кнопок на форме нет.
+    if oauth_config is None:
+        oauth_config = oauth_config_from_env()
 
     def require_captcha(payload: BaseModel, request: Request, session: Session) -> None:
         """Проверка капчи для действий, которые создают данные (события).
@@ -237,6 +243,17 @@ def create_app(
     app.include_router(auth["router"])
     get_current_user = auth["get_current_user"]
     require_role = auth["require_role"]
+
+    # Вход через Яндекс ID (и позже VK): свой роутер, та же база и те же лимитеры.
+    # Под Basic-гейтом публичного показа провайдеров нет: гость после возврата
+    # от Яндекса упёрся бы в пароль гейта, поэтому кнопки не показываем.
+    oauth = build_oauth_routes(
+        session_factory,
+        oauth_config,
+        gate_active=bool(gate_password),
+        providers=oauth_providers,
+    )
+    app.include_router(oauth["router"])
 
     @app.get("/api/v1/health")
     def health_check() -> dict[str, str]:

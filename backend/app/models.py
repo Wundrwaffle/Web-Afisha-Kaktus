@@ -47,6 +47,32 @@ class User(Base):
     )
 
 
+class Identity(Base):
+    """Связка «аккаунт у внешнего провайдера» → наш пользователь.
+
+    Один человек может привязать несколько провайдеров (Яндекс, позже VK),
+    поэтому уникальна пара (provider, provider_user_id), а не user_id.
+    Пароль OAuth-аккаунта — случайный хеш: схему users не ломаем (password_hash
+    NOT NULL), но войти по паролю такому аккаунту невозможно.
+    """
+
+    __tablename__ = "identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_user_id", name="uq_identity_provider_user"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    provider_user_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Почта, которую провайдер отдал на момент привязки (у Яндекса — default_email).
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    display_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    linked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 

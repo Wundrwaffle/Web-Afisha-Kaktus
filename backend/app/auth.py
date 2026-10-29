@@ -18,7 +18,7 @@ from .captcha import (
 )
 from .db import session_dependency
 from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
-from .models import RefreshToken, User
+from .models import Identity, RefreshToken, User
 from .security import (
     create_access_token,
     create_refresh_token,
@@ -63,6 +63,10 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    # Способы входа: пусто — обычный аккаунт с паролем, ["yandex"] — создан
+    # через Яндекс ID. Нужно фронту, чтобы не предлагать «забыли пароль» такому
+    # аккаунту и показать, как он входит.
+    identities: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -90,8 +94,41 @@ def app_token(
     return api_key or bearer
 
 
-def serialize_user(user: User) -> UserOut:
-    return UserOut.model_validate(user)
+def serialize_user(user: User, methods: list[str] | None = None) -> UserOut:
+    """Профиль для фронта. `methods` — провайдеры, привязанные к аккаунту."""
+    data = UserOut.model_validate(user)
+    if methods:
+        data.identities = methods
+    return data
+
+
+def login_methods(session: Session, user_id: int) -> list[str]:
+    """Способы входа аккаунта: список привязанных провайдеров (Яндекс, позже VK)."""
+    rows = session.scalars(
+        select(Identity.provider).where(Identity.user_id == user_id)
+    ).all()
+    return sorted(set(rows))
+
+
+def issue_token_pair(session: Session, user: User) -> TokenPair:
+    """Наша пара JWT + запись refresh-токена.
+
+    Общая точка для входа по паролю и для OAuth: строку RefreshToken нельзя
+    забыть ни в одном из путей, иначе сессия «умирает» на первом обновлении.
+    """
+    refresh_raw, refresh_hash, expires_at = create_refresh_token(user)
+    session.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=refresh_hash,
+            expires_at=expires_at,
+        )
+    )
+    session.commit()
+    return TokenPair(
+        access_token=create_access_token(user),
+        refresh_token=refresh_raw,
+    )
 
 
 def build_auth_routes(
@@ -187,19 +224,7 @@ def build_auth_routes(
         return dependency
 
     def _create_token_pair(session: Session, user: User) -> TokenPair:
-        refresh_raw, refresh_hash, expires_at = create_refresh_token(user)
-        session.add(
-            RefreshToken(
-                user_id=user.id,
-                token_hash=refresh_hash,
-                expires_at=expires_at,
-            )
-        )
-        session.commit()
-        return TokenPair(
-            access_token=create_access_token(user),
-            refresh_token=refresh_raw,
-        )
+        return issue_token_pair(session, user)
 
     @router.get("/captcha")
     def captcha_settings() -> dict[str, object]:
@@ -293,6 +318,18 @@ def build_auth_routes(
         if user is None or not verify_password(payload.password, user.password_hash):
             if login_limiter is not None:
                 login_limiter.register_failure(ip, email)
+            # Аккаунт, созданный через Яндекс ID, пароля не имеет (в password_hash
+            # лежит случайный хеш). Без подсказки человек ищет «забыли пароль»
+            # и не понимает, почему вход не работает.
+            methods = login_methods(session, user.id) if user is not None else []
+            if methods:
+                raise HTTPException(
+                    status_code=401,
+                    detail=(
+                        "Этот аккаунт создан через внешний сервис. "
+                        "Войдите кнопкой «Продолжить с Яндекс»."
+                    ),
+                )
             raise HTTPException(status_code=401, detail="Invalid email or password")
         if not user.is_active:
             raise HTTPException(status_code=403, detail="Account is deactivated")
@@ -338,8 +375,11 @@ def build_auth_routes(
         return {"status": "ok"}
 
     @router.get("/me", response_model=UserOut)
-    def me(current_user: User = Depends(get_current_user)) -> UserOut:
-        return serialize_user(current_user)
+    def me(
+        current_user: User = Depends(get_current_user),
+        session: Session = Depends(get_session),
+    ) -> UserOut:
+        return serialize_user(current_user, login_methods(session, current_user.id))
 
     return {
         "router": router,
