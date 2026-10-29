@@ -382,7 +382,24 @@
     .captcha-slot > div { max-width: 100%; overflow: hidden; }
     .captcha-fallback { margin-top: 8px; font-size: 12px; line-height: 1.5; color: var(--muted); }
     .captcha-fallback p { margin: 0 0 8px; }
-    .captcha-fallback .ghost-btn { padding: 8px 12px; font-size: 12px; }
+    /* Повтор проверки — ссылка по центру, а не кнопка: под ползунком она не
+       должна соперничать с главной кнопкой формы («Создать аккаунт»/«Войти»). */
+    .local-captcha-retry { display: block; width: 100%; margin: 0; padding: 2px 0; border: 0; background: none; font: inherit; font-size: 12px; color: var(--muted); text-align: center; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; cursor: pointer; }
+    .local-captcha-retry:hover { color: var(--accent-dark); }
+    .local-captcha-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+    .local-captcha-retry[hidden] { display: none; }
+    /* Своя капча: тот же слот, что и виджет, поэтому рамку и отступы
+       повторяем — подмена не должна дёргать вёрстку формы. */
+    .local-captcha { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 12px 14px; }
+    .local-captcha .local-captcha-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; background: transparent; margin: 0 0 6px; cursor: grab; touch-action: pan-y; }
+    .local-captcha .local-captcha-slider:active { cursor: grabbing; }
+    .local-captcha .local-captcha-slider:disabled { cursor: default; opacity: .75; }
+    .local-captcha .local-captcha-slider::-webkit-slider-runnable-track { height: 34px; border-radius: 99px; background: var(--soft-blue); border: 1px solid var(--line); }
+    .local-captcha .local-captcha-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: 2px; border: 0; border-radius: 50%; background: var(--accent); }
+    .local-captcha .local-captcha-slider::-moz-range-track { height: 34px; border-radius: 99px; background: var(--soft-blue); border: 1px solid var(--line); }
+    .local-captcha .local-captcha-slider::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--accent); }
+    .local-captcha .local-captcha-status { margin: 0; font-weight: 700; color: var(--accent-dark); }
+    .local-captcha.solved .local-captcha-status { color: var(--accent-dark); }
     .cabinet-head { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; box-shadow: var(--shadow); margin-bottom: 18px; }
     .cabinet-head h2 { font-size: 22px; margin: 0 0 5px; }
     .cabinet-head p { color: var(--muted); font-size: 13px; margin: 0; }
@@ -1487,12 +1504,12 @@
       // Капча на создании и правке своего события. Правка из модерации — действие
       // сотрудника, её не закрываем.
       if (!isModEdit) {
-        const token = captchaTokenFor('event-captcha');
-        if (captchaSettings.enabled && !token) {
+        const captchaFields = captchaProof('event-captcha');
+        if (captchaSettings.enabled && !captchaFields) {
           toast('Подтвердите, что вы не робот');
           return;
         }
-        if (token) payload.captcha_token = token;
+        Object.assign(payload, captchaFields || {});
       }
       const url = isModEdit
         ? `${API_BASE}/moderation/events/${modEditEventId}`
@@ -1991,6 +2008,9 @@
     let captchaSettings = { enabled: false, client_key: '' };
     const captchaWidgets = {};  // id контейнера -> widgetId
     const captchaTokens = {};   // id контейнера -> токен прохождения
+    // Решение своей капчи для контейнера: {token, nonce}. Одноразовое, как и
+    // токен виджета, поэтому после ошибки его надо получать заново.
+    const localCaptcha = {};
 
     async function loadCaptchaSettings() {
       try {
@@ -2004,10 +2024,15 @@
     // проверка «просто не отображается» — без подсказки человек не поймёт, почему
     // форма не отправляется. Поэтому ловим и onerror, и таймаут на загрузку.
     let captchaLoadTimer = null;
+    // Скрипт уже пробовали и он не поднялся. Нужно, чтобы форма, открытая ПОСЛЕ
+    // неудачи, сразу показывала свою капчу, а не молчала: повторный вызов
+    // loadSmartCaptchaScript() ничего не делает — элемент script уже в DOM.
+    let captchaScriptFailed = false;
 
     function loadSmartCaptchaScript() {
       if (window.smartCaptcha) return;
       if (document.getElementById('smartcaptcha-script')) return;
+      captchaScriptFailed = false;
       const script = document.createElement('script');
       script.id = 'smartcaptcha-script';
       script.src = SMARTCAPTCHA_SCRIPT;
@@ -2021,6 +2046,7 @@
     }
 
     function onCaptchaScriptFailed() {
+      captchaScriptFailed = true;
       document.querySelectorAll('.captcha-slot:not([hidden])').forEach((slot) => {
         if (slot.dataset.captcha) showCaptchaFallback(slot.dataset.captcha);
       });
@@ -2031,30 +2057,118 @@
       if (!container || document.getElementById(containerId + '-fallback')) return;
       const box = document.createElement('div');
       box.id = containerId + '-fallback';
-      box.className = 'captcha-fallback';
+      box.className = 'captcha-fallback local-captcha';
       const text = document.createElement('p');
-      text.textContent = 'Проверка не загрузилась. Обычно её блокирует расширение (Adblock, Ghostery) или защита от трекеров в браузере — отключите блокировщик для этого сайта и нажмите «Повторить».';
+      text.className = 'local-captcha-hint';
+      text.textContent = 'Внешняя проверка не загрузилась — её блокирует расширение или защита от трекеров. Пройдите нашу: потяните ползунок вправо.';
+      const track = document.createElement('input');
+      track.type = 'range';
+      track.min = '0';
+      track.max = '100';
+      track.step = '1';
+      track.value = '0';
+      track.className = 'local-captcha-slider';
+      track.setAttribute('aria-label', 'Ползунок проверки «я не робот»');
+      const status = document.createElement('p');
+      status.className = 'local-captcha-status';
       const retry = document.createElement('button');
       retry.type = 'button';
-      retry.className = 'ghost-btn';
-      retry.textContent = 'Повторить';
+      // Не кнопка, а вид ссылки по центру: под ползунком она не должна
+      // перетягивать внимание с главного действия формы.
+      retry.className = 'local-captcha-retry';
+      retry.textContent = 'Загрузить проверку Яндекса заново';
       retry.addEventListener('click', () => {
         const old = document.getElementById('smartcaptcha-script');
         if (old) old.remove();
-        box.remove();
         loadSmartCaptchaScript();
       });
-      box.append(text, retry);
+      box.append(text, track, status, retry);
       container.after(box);
+
+      // busy — на самом блоке, а не в замыкании: resetCaptcha() должна снимать
+      // его после отправки формы, иначе ползунок остаётся «занятым» навсегда и
+      // вторая попытка (вход после регистрации, повтор после ошибки) молчит.
+      track.addEventListener('input', async () => {
+        if (box.dataset.busy === '1' || Number(track.value) < 100) return;
+        box.dataset.busy = '1';
+        track.disabled = true;
+        status.textContent = 'Решаем задачу…';
+        try {
+          localCaptcha[containerId] = await solveLocalCaptcha((percent) => {
+            status.textContent = `Решаем задачу… ${percent}%`;
+          });
+          status.textContent = 'Готово ✓';
+          box.classList.add('solved');
+          text.hidden = true;
+          retry.hidden = true;
+        } catch (error) {
+          status.textContent = 'Не удалось пройти проверку. Потяните ползунок ещё раз.';
+          track.value = '0';
+          track.disabled = false;
+          box.dataset.busy = '';
+        }
+      });
+    }
+
+    // Задание у сервера и перебор чисел к нему. Хеши считает crypto.subtle
+    // (нужен https или localhost), порциями по 512 — страница остаётся
+    // отзывчивой, а Web Worker не нужен: он потребовал бы ослабить CSP ради
+    // blob:. Потолок перебора втрое больше среднего ожидания.
+    async function solveLocalCaptcha(onProgress) {
+      const resp = await fetch(`${API_BASE}/auth/captcha/challenge`, { method: 'POST' });
+      if (!resp.ok) throw new Error('Не удалось получить задание');
+      const data = await resp.json();
+      const prefix = data.prefix || '0'.repeat(Number(data.difficulty) || 4);
+      const encoder = new TextEncoder();
+      const BATCH = 512;
+      // Потолок — по времени, а не по числу раундов. Прежние 400 раундов
+      // (204 800 хешей) при сложности 4 не находили решение примерно в 4%
+      // попыток: распределение случайное, а «пустые» серии бывают. Человек
+      // видел «Не удалось пройти проверку» и уходил, хотя всё исправно.
+      const deadline = Date.now() + 20000;
+      let nonce = 0;
+      let round = 0;
+      while (Date.now() < deadline) {
+        const jobs = [];
+        for (let i = 0; i < BATCH; i += 1) {
+          const value = String(nonce + i);
+          jobs.push(
+            crypto.subtle
+              .digest('SHA-256', encoder.encode(`${data.token}:${value}`))
+              .then((buffer) => ({ value, hex: hexOf(buffer) }))
+          );
+        }
+        nonce += BATCH;
+        round += 1;
+        const results = await Promise.all(jobs);
+        for (const item of results) {
+          if (item.hex.startsWith(prefix)) return { token: data.token, nonce: item.value };
+        }
+        if (onProgress) onProgress(Math.min(99, Math.round((round / 400) * 100)));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      throw new Error('Решение не найдено');
+    }
+
+    function hexOf(buffer) {
+      return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, '0')).join('');
     }
 
     function renderCaptchaInto(containerId) {
       if (!captchaSettings.enabled) return;
       if (!document.getElementById(containerId)) return;
       if (captchaWidgets[containerId] !== undefined) return;
-      if (!window.smartCaptcha) { loadSmartCaptchaScript(); return; }
+      if (!window.smartCaptcha) {
+        // Скрипт уже не поднялся — сразу своя капча, иначе форма останется без
+        // проверки: loadSmartCaptchaScript() второй раз ничего не грузит.
+        if (captchaScriptFailed) showCaptchaFallback(containerId);
+        else loadSmartCaptchaScript();
+        return;
+      }
       const fallback = document.getElementById(containerId + '-fallback');
       if (fallback) fallback.remove();
+      // Виджет вернулся — решение своей капчи больше не нужно.
+      delete localCaptcha[containerId];
       captchaWidgets[containerId] = window.smartCaptcha.render(containerId, {
         sitekey: captchaSettings.client_key,
         hl: 'ru',
@@ -2069,6 +2183,7 @@
 
     // Скрипт Яндекса вызывает эту функцию (onload=onSmartCaptchaReady).
     function onSmartCaptchaReady() {
+      captchaScriptFailed = false;
       document.querySelectorAll('.captcha-slot:not([hidden])').forEach((slot) => {
         if (slot.dataset.captcha) renderCaptchaInto(slot.dataset.captcha);
       });
@@ -2080,6 +2195,10 @@
       if (!slot) return;
       slot.hidden = !(visible && captchaSettings.enabled);
       if (!slot.hidden && slot.dataset.captcha) renderCaptchaInto(slot.dataset.captcha);
+      // Своя капча лежит рядом со слотом, а не внутри: прятать её нужно отдельно,
+      // иначе она остаётся висеть на форме, где проверка не нужна.
+      const box = slot.dataset.captcha && document.getElementById(`${slot.dataset.captcha}-fallback`);
+      if (box) box.hidden = slot.hidden;
     }
 
     function captchaTokenFor(containerId) {
@@ -2091,11 +2210,39 @@
       return captchaTokens[containerId] || null;
     }
 
+    // Что отправить вместе с формой: токен виджета Яндекса или пару своей
+    // капчи. null — человек проверку не проходил.
+    function captchaProof(containerId) {
+      if (!captchaSettings.enabled) return null;
+      const smart = captchaTokenFor(containerId);
+      if (smart) return { captcha_token: smart };
+      const local = localCaptcha[containerId];
+      if (local && local.token && local.nonce) {
+        return { captcha_local_token: local.token, captcha_local_nonce: local.nonce };
+      }
+      return null;
+    }
+
     function resetCaptcha(containerId) {
       captchaTokens[containerId] = '';
       if (window.smartCaptcha && captchaWidgets[containerId] !== undefined) {
         try { window.smartCaptcha.reset(captchaWidgets[containerId]); } catch (e) { /* виджет мог не отрисоваться */ }
       }
+      // Своя капча одноразовая: после ошибки ползунок возвращаем в начало.
+      delete localCaptcha[containerId];
+      const box = document.getElementById(containerId + '-fallback');
+      if (!box) return;
+      box.classList.remove('solved');
+      const slider = box.querySelector('.local-captcha-slider');
+      const status = box.querySelector('.local-captcha-status');
+      const hint = box.querySelector('.local-captcha-hint');
+      const retry = box.querySelector('.local-captcha-retry');
+      if (slider) { slider.disabled = false; slider.value = '0'; }
+      // Снимаем «занято»: следующая попытка должна снова запускать решение.
+      box.dataset.busy = '';
+      if (status) status.textContent = '';
+      if (hint) hint.hidden = false;
+      if (retry) retry.hidden = false;
     }
 
     function switchAuthMode(mode) {
@@ -2137,9 +2284,9 @@
       }
 
       // Капча стоит и на входе, и на регистрации; при выключенной проверке
-      // токен не шлём и виджет не показываем.
-      const captchaValue = captchaTokenFor('auth-captcha');
-      if (captchaSettings.enabled && !captchaValue) {
+      // поле не шлём и виджет не показываем.
+      const captchaFields = captchaProof('auth-captcha');
+      if (captchaSettings.enabled && !captchaFields) {
         showAuthError('Подтвердите, что вы не робот.');
         return;
       }
@@ -2149,7 +2296,7 @@
           const resp = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email, password, full_name: fullName, ...(captchaValue ? {captcha_token: captchaValue} : {})}),
+            body: JSON.stringify({email, password, full_name: fullName, ...(captchaFields || {})}),
           });
           const data = await resp.json();
           if (!resp.ok) throw new Error(data.detail || 'Не удалось зарегистрироваться');
@@ -2164,7 +2311,7 @@
         const resp = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({email, password, ...(captchaValue ? {captcha_token: captchaValue} : {})}),
+          body: JSON.stringify({email, password, ...(captchaFields || {})}),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || 'Неверный email или пароль');
@@ -2180,6 +2327,10 @@
         await loadFavorites();
         updateNotifBadge();
         toast(`Добро пожаловать, ${me.full_name || me.email}!`);
+        // Токен капчи одноразовый и уже погашен сервером: без сброса форма
+        // «Войти» останется с зелёным «Готово ✓» и мёртвым доказательством —
+        // при следующем входе человек получит «Подтвердите, что вы не робот».
+        resetCaptcha('auth-captcha');
         showScreen('home');
       } catch (error) {
         // Токен капчи одноразовый: после любой ошибки виджет нужно пройти заново.
@@ -2199,6 +2350,9 @@
         });
       } catch (e) { /* сетевой сбой — всё равно чистим локально */ }
       clearSession();
+      // Прошлое доказательство капчи уже погашено — не оставляем «Готово ✓»
+      // на форме входа для следующего человека за этим устройством.
+      resetCaptcha('auth-captcha');
       toast('Вы вышли из кабинета');
     }
 
