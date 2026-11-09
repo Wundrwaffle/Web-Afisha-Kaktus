@@ -41,6 +41,9 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="visitor")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Подтверждён ли адрес ссылкой из письма. Вход без подтверждения закрыт,
+    # поэтому аккаунты, существовавшие до миграции, получают 1 (грандфазеринг).
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow, onupdate=utcnow
@@ -82,6 +85,50 @@ class RefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class EmailVerification(Base):
+    """Ссылка подтверждения адреса. Хранится только sha256 токена.
+
+    Строка — журнал: used_at ставится и при подтверждении, и при выпуске новой
+    ссылки (старая гаснет). Поэтому «сколько писем отправляли» видно по числу
+    строк, и пауза между письмами считается без отдельного поля.
+    """
+
+    __tablename__ = "email_verifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    # Адрес на момент выпуска: если его сменили, старая ссылка недействительна.
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow, index=True
+    )
+
+
+class PasswordReset(Base):
+    """Ссылка сброса пароля. Хранится только sha256 токена, как у подтверждения.
+
+    Отдельная таблица, а не общий журнал с email_verifications: у сброса другой
+    срок жизни (60 минут вместо суток) и другая цена ошибки, поэтому смешивать
+    типы токенов в одной таблице — значит рано или поздно перепутать проверку.
+    """
+
+    __tablename__ = "password_resets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    # Адрес на момент выпуска: если его сменили, старая ссылка недействительна.
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow, index=True
+    )
 
 
 class Favorite(Base):

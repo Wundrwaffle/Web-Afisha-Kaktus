@@ -326,6 +326,11 @@ def _redirect(base: str, params: dict[str, str]) -> RedirectResponse:
     )
 
 
+def email_matches(ours: str | None, theirs: str | None) -> bool:
+    """Один и тот же адрес? Провайдеры отдают почту в разном регистре."""
+    return (ours or "").strip().lower() == (theirs or "").strip().lower()
+
+
 def _service_email(provider_id: str, provider_user_id: str) -> str:
     # Только ASCII и цифры провайдерского id: в адрес не должно попасть ничего,
     # что превратит его в невалидный мусор.
@@ -361,6 +366,11 @@ def upsert_oauth_user(session: Session, provider_id: str, profile: OAuthProfile)
         identity.email = profile.email or identity.email
         identity.display_name = profile.display_name or identity.display_name
         identity.avatar_url = profile.avatar_url or identity.avatar_url
+        if profile.email_verified and profile.email and not user.email_verified:
+            if email_matches(user.email, profile.email):
+                # Вход через провайдера — доказательство доступа к ящику,
+                # отдельное письмо с подтверждением такому человеку не нужно.
+                user.email_verified = True
         session.commit()
         return user
 
@@ -383,6 +393,10 @@ def upsert_oauth_user(session: Session, provider_id: str, profile: OAuthProfile)
         )
         session.add(user)
         session.flush()
+
+    if profile.email_verified and profile.email and email_matches(user.email, profile.email):
+        # Почта та же и провайдер её подтвердил — адрес считаем подтверждённым.
+        user.email_verified = True
 
     session.add(
         Identity(

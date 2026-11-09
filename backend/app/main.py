@@ -33,6 +33,8 @@ from .exposure import (
 )
 from .notifications import generate_reminders, notify_users, staff_ids
 from .legal import register_legal_routes
+from .mail import MailConfig, Mailer, build_mailer
+from .mail import config_from_env as mail_config_from_env
 from .oauth import OAuthConfig, build_oauth_routes, config_from_env as oauth_config_from_env
 
 
@@ -123,6 +125,8 @@ def create_app(
     captcha_verifier: CaptchaVerifier | None = None,
     oauth_config: OAuthConfig | None = None,
     oauth_providers=None,
+    mail_config: MailConfig | None = None,
+    mailer: Mailer | None = None,
 ) -> FastAPI:
     # Параметры публичного режима: явный аргумент (удобно в тестах) или окружение.
     if public_mode is None:
@@ -141,6 +145,16 @@ def create_app(
     # OAuth включается парой ключей провайдера; без них кнопок на форме нет.
     if oauth_config is None:
         oauth_config = oauth_config_from_env()
+
+    # Почта включается настройками (AFISHA_MAIL_*): без них писем нет, регистрация
+    # работает как раньше, маршруты подтверждения отвечают 404.
+    if mail_config is None:
+        mail_config = mail_config_from_env()
+    if mailer is None:
+        mailer = build_mailer(mail_config)
+    # Требование подтверждённого адреса для публикации событий — выключено по
+    # умолчанию: пока писем нет, оно бы просто заперло организаторов.
+    require_verified_email = env_flag("AFISHA_MAIL_REQUIRE_VERIFIED") and mailer is not None
 
     def require_captcha(payload: BaseModel, request: Request, session: Session) -> None:
         """Проверка капчи для действий, которые создают данные (события).
@@ -184,6 +198,19 @@ def create_app(
                     _conn.execute(_text(
                         "ALTER TABLE events ADD COLUMN moderation_note VARCHAR(500)"
                     ))
+        if "users" in _insp.get_table_names():
+            _ucols = {c["name"] for c in _insp.get_columns("users")}
+            if "email_verified" not in _ucols:
+                # Колонки не было — значит, все аккаунты в базе зарегистрированы
+                # до проверки почты. Подтверждаем их сразу (грандфазеринг): вход
+                # теперь закрыт для неподтверждённых, и без этого люди, которые
+                # вчера нормально входили, сегодня получили бы 403 и не поняли,
+                # что случилось. Новые регистрации получают 0 как обычно.
+                with engine.begin() as _conn:
+                    _conn.execute(_text(
+                        "ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 0"
+                    ))
+                    _conn.execute(_text("UPDATE users SET email_verified = 1"))
 
     session_factory = build_session_factory(engine)
 
@@ -239,6 +266,8 @@ def create_app(
         register_limiter=register_limiter,
         captcha=captcha_config,
         captcha_verifier=captcha_verifier,
+        mailer=mailer,
+        require_verified_email=require_verified_email,
     )
     app.include_router(auth["router"])
     get_current_user = auth["get_current_user"]
@@ -266,6 +295,17 @@ def create_app(
         session: Session = Depends(get_session),
         current_user: User = Depends(require_role("organizer", "admin")),
     ) -> dict[str, object]:
+        if require_verified_email and not current_user.email_verified:
+            # Публикация от имени неподтверждённого адреса: письма о модерации
+            # такому организатору не дойдут. Правка уже созданных событий
+            # остаётся доступной — не запираем человека посреди работы.
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Подтвердите адрес почты: ссылка пришла письмом при "
+                    "регистрации, повторно — в личном кабинете."
+                ),
+            )
         require_captcha(payload, request, session)
         # Лимит на число предстоящих (не прошедших) событий организатора.
         active_count = session.scalar(
