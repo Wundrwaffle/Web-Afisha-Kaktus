@@ -32,6 +32,8 @@ from .exposure import (
     env_flag,
 )
 from .notifications import generate_reminders, notify_users, staff_ids
+from .notify_email import ensure_schema as ensure_notify_schema
+from .notify_email import send_pending as send_notification_emails
 from .legal import register_legal_routes
 from .mail import MailConfig, Mailer, build_mailer
 from .mail import config_from_env as mail_config_from_env
@@ -211,6 +213,10 @@ def create_app(
                         "ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 0"
                     ))
                     _conn.execute(_text("UPDATE users SET email_verified = 1"))
+        # Почта по уведомлениям: emailed_at — письмо ушло, email_attempts —
+        # сколько раз пытались. Без этих колонок ORM не прочитает уведомления,
+        # поэтому добиваем их здесь же, до первого запроса.
+        ensure_notify_schema(engine)
 
     session_factory = build_session_factory(engine)
 
@@ -256,6 +262,32 @@ def create_app(
 
     def get_session():
         yield from session_dependency(session_factory)
+
+    def notify(
+        session: Session,
+        user_ids: list[int] | set[int],
+        *,
+        kind: str,
+        title: str,
+        text: str,
+        event_id: int | None = None,
+    ) -> list[Notification]:
+        """Уведомление в кабинет + письмо о нём (если почта настроена).
+
+        Коммит до отправки: письмо не должно уходить по строке, которой в базе
+        ещё нет. Сбой почтового сервиса не ломает действие — send_pending ловит
+        MailError, пишет причину в строку, и письмо доберёт задача notify_job.
+        Когда почта не настроена, mailer = None и функция молча ничего не шлёт.
+        """
+        created = notify_users(
+            session, user_ids, kind=kind, title=title, text=text, event_id=event_id
+        )
+        session.commit()
+        if created and mailer is not None:
+            send_notification_emails(
+                session, mailer, notification_ids=[n.id for n in created]
+            )
+        return created
 
     with session_factory() as session:
         seed_demo_events(session)
@@ -332,7 +364,7 @@ def create_app(
         session.add(event)
         session.commit()
         session.refresh(event)
-        notify_users(
+        notify(
             session,
             staff_ids(session),
             kind="event_created",
@@ -503,7 +535,7 @@ def create_app(
             setattr(event, field, value)
         session.commit()
         session.refresh(event)
-        notify_users(
+        notify(
             session,
             staff_ids(session),
             kind="event_updated",
@@ -567,7 +599,7 @@ def create_app(
         event.moderation_note = None
         session.commit()
         session.refresh(event)
-        notify_users(
+        notify(
             session,
             staff_ids(session),
             kind="event_resubmitted",
@@ -676,7 +708,7 @@ def create_app(
         session.commit()
         session.refresh(event)
         if payload.decision == "reject":
-            notify_users(
+            notify(
                 session,
                 [event.organizer_id],
                 kind="event_rejected",
@@ -688,7 +720,7 @@ def create_app(
                 event_id=event.id,
             )
         else:
-            notify_users(
+            notify(
                 session,
                 [event.organizer_id],
                 kind="event_approved",
@@ -770,7 +802,7 @@ def create_app(
         event.moderation_note = payload.reason.strip()
         session.commit()
         session.refresh(event)
-        notify_users(
+        notify(
             session,
             [event.organizer_id],
             kind="event_unpublished",
@@ -847,7 +879,14 @@ def create_app(
         session: Session = Depends(get_session),
         current_user: User = Depends(get_current_user),
     ) -> dict[str, object]:
-        generate_reminders(session, current_user.id)
+        # Напоминания создаём сразу (человек видит их в кабинете), письмо по
+        # новым отправляем здесь же: иначе оно уйдёт только ночной задачей —
+        # то есть в день события.
+        fresh_reminders = generate_reminders(session, current_user.id)
+        if fresh_reminders and mailer is not None:
+            send_notification_emails(
+                session, mailer, notification_ids=[n.id for n in fresh_reminders]
+            )
         statement = (
             select(Notification)
             .where(Notification.user_id == current_user.id)

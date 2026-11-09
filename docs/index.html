@@ -2151,6 +2151,28 @@
       showAuthPanel('newpass');
     }
 
+    // Ссылка из письма: <сайт>/#notif (уведомление) или <сайт>/#moderation
+    // (служебное). Открываем нужный экран сразу, но только если человек вошёл и
+    // роль позволяет: гостю сначала вход, а не пустая админ-панель.
+    // Якорь из адреса убираем — он не должен попадать в историю и Referer.
+    function openScreenFromLink() {
+      const match = /^#(notif|moderation)$/.exec(window.location.hash || '');
+      if (!match) return;
+      const target = match[1];
+      const user = getStoredUser();
+      if (!user) return;
+      const isStaff = user.role === 'moderator' || user.role === 'admin';
+      if (target === 'moderation' && !isStaff) return;
+      history.replaceState({}, '', window.location.pathname + window.location.search);
+      if (target === 'notif') {
+        cabinetTab = 'notif';
+        renderCabinet();
+        showScreen('auth');
+        return;
+      }
+      showScreen(target);
+    }
+
     function setCabinetTab(tab) {
       cabinetTab = tab;
       document.querySelectorAll('#cabinet-tabs .chip').forEach(c => c.classList.toggle('active', c.dataset.tab === tab));
@@ -3048,7 +3070,10 @@
       .then(() => restoreSession())
       // Сброс — последним: если человек уже залогинен, restoreSession успела бы
       // показать кабинет и перекрыть форму нового пароля.
-      .then(() => handleResetLink());
+      .then(() => handleResetLink())
+      // Якорь из письма (#notif/#moderation) — последним: экран открываем уже с
+      // восстановленной сессией, иначе роли ещё нет и кабинет пуст.
+      .then(() => openScreenFromLink());
 
     // === Тема оформления ===
     // Свой выбор хранится в localStorage и перебивает системный; пока выбора нет —

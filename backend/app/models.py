@@ -177,3 +177,11 @@ class Notification(Base):
     text: Mapped[str] = mapped_column(String(1000), nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    # Письмо об уведомлении. NULL в emailed_at — ещё не отправляли (или отправка
+    # сорвалась): такие строки добирает ежедневная задача app.notify_job.
+    # Попытки считаем, чтобы «адрес не существует» не превращался в вечный цикл.
+    emailed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, index=True
+    )
+    email_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    email_error: Mapped[str | None] = mapped_column(String(300), nullable=True)
