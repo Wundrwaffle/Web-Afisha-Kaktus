@@ -370,3 +370,100 @@ def test_migration_confirms_existing_accounts(tmp_path):
             ).fetchone()[0]
         assert verified == 1
         assert _login(client, email="old@example.com").status_code == 200
+
+
+# --- Вход с другого устройства -------------------------------------------------
+
+
+def test_registration_returns_pending_token_that_waits(tmp_path):
+    mailer = CaptureMailer()
+    app = _app(tmp_path, 'pending_reg', mailer)
+    with TestClient(app) as client:
+        registered = _register(client)
+        assert registered.status_code == 201
+        pending = registered.json()['pending_token']
+        assert pending, 'без токена вкладка не сможет войти сама'
+
+        waiting = client.post('/api/v1/auth/verify-status', json={'pending_token': pending})
+        assert waiting.status_code == 200
+        assert waiting.json()['status'] == 'pending'
+
+
+def test_pending_token_enters_after_confirming_on_another_device(tmp_path):
+    """Пароль вводили на компьютере, письмо открыли на телефоне."""
+    mailer = CaptureMailer()
+    app = _app(tmp_path, 'pending_other', mailer)
+    with TestClient(app) as desktop, TestClient(app) as phone:
+        pending = _register(desktop).json()['pending_token']
+
+        confirmed = phone.post(
+            '/api/v1/auth/verify-email', json={'token': mailer.links('verify')[0]}
+        )
+        assert confirmed.json()['status'] == 'ok'
+
+        entered = desktop.post(
+            '/api/v1/auth/verify-status', json={'pending_token': pending}
+        )
+        body = entered.json()
+        assert entered.status_code == 200
+        assert body['status'] == 'verified'
+        assert body['user']['email'] == EMAIL
+        assert body['access_token'] and body['refresh_token']
+
+        # Выданный токен действительно пускает в кабинет.
+        me = desktop.get(
+            '/api/v1/auth/me', headers={'X-Auth-Token': body['access_token']}
+        )
+        assert me.status_code == 200
+        assert me.json()['email_verified'] is True
+
+
+def test_login_gate_also_hands_out_pending_token(tmp_path):
+    mailer = CaptureMailer()
+    app = _app(tmp_path, 'pending_login', mailer)
+    with TestClient(app) as client:
+        _register(client)
+        blocked = _login(client)
+        assert blocked.status_code == 403
+        pending = blocked.json()['detail']['pending_token']
+        assert pending
+
+        client.post(
+            '/api/v1/auth/verify-email', json={'token': mailer.links('verify')[0]}
+        )
+        entered = client.post(
+            '/api/v1/auth/verify-status', json={'pending_token': pending}
+        )
+
+    assert entered.json()['status'] == 'verified'
+    assert entered.json()['user']['email'] == EMAIL
+
+
+def test_access_token_cannot_be_used_as_pending_token(tmp_path):
+    mailer = CaptureMailer()
+    app = _app(tmp_path, 'pending_wrong_type', mailer)
+    with TestClient(app) as client:
+        _register(client)
+        client.post(
+            '/api/v1/auth/verify-email', json={'token': mailer.links('verify')[0]}
+        )
+        access = _login(client).json()['access_token']
+        response = client.post(
+            '/api/v1/auth/verify-status', json={'pending_token': access}
+        )
+
+    assert response.status_code == 401
+
+
+def test_pending_token_of_other_account_does_not_leak_tokens(tmp_path):
+    """Мусор вместо токена — 401, а не чужой кабинет."""
+    mailer = CaptureMailer()
+    app = _app(tmp_path, 'pending_garbage', mailer)
+    with TestClient(app) as client:
+        _register(client)
+        response = client.post(
+            '/api/v1/auth/verify-status',
+            json={'pending_token': 'a' * 40},
+        )
+
+    assert response.status_code == 401

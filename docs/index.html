@@ -621,7 +621,7 @@
 
     <section id="admin" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Пользователи и роли</h1><p>Назначайте роли: visitor, organizer, moderator, admin.</p></div></div><div class="panel" id="admin-users-list" style="padding:0"></div></div></section>
 
-    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card" id="auth-card"><div class="oauth-block" id="oauth-block" hidden><div id="oauth-buttons"></div><div class="oauth-sep"><span>или почта и пароль</span></div></div><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="auth-forgot" id="auth-forgot"><button type="button" class="link-btn" onclick="openPasswordReset()">Не помню пароль</button></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div></div><div class="auth-card" id="mail-check-card" hidden><h2 id="mail-check-title">Проверьте почту</h2><p class="auth-sub" id="mail-check-sub"></p><div class="mail-check-addr" id="mail-check-addr"></div><div class="auth-error" id="mail-check-error"></div><button class="primary-btn" id="mail-check-resend" onclick="resendFromCheck()">Отправить письмо ещё раз</button><button class="ghost-btn" id="mail-check-retry" onclick="retryFromCheck()" hidden>Запросить новое письмо</button><button class="ghost-btn" onclick="closeMailCheck()">Вернуться ко входу</button></div><div class="auth-card" id="reset-card" hidden><h2>Сброс пароля</h2><p class="auth-sub">Укажите адрес, на который зарегистрирован аккаунт: пришлём ссылку для нового пароля.</p><form id="reset-form" onsubmit="submitPasswordResetRequest(event)"><div class="field"><label>Email</label><input id="reset-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="auth-error" id="reset-error"></div><button class="primary-btn" type="submit" id="reset-submit">Отправить ссылку</button></form><button class="ghost-btn" onclick="closePasswordReset()">Вернуться ко входу</button></div><div class="auth-card" id="newpass-card" hidden><h2>Новый пароль</h2><p class="auth-sub">Придумайте пароль не короче 8 символов. Все другие сессии аккаунта будут завершены.</p><form id="newpass-form" onsubmit="submitNewPassword(event)"><div class="field"><label>Новый пароль</label><input id="newpass-value" type="password" placeholder="Минимум 8 символов" autocomplete="new-password" minlength="8" required></div><div class="field"><label>Повторите пароль</label><input id="newpass-repeat" type="password" autocomplete="new-password" minlength="8" required></div><div class="auth-error" id="newpass-error"></div><button class="primary-btn" type="submit">Сохранить пароль</button></form></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div class="cabinet-actions"><button class="primary-btn" onclick="handleAddEventClick()" title="Добавить событие" aria-label="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button><button class="ghost-btn" onclick="handleLogout()" title="Выйти" aria-label="Выйти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 7l-4 5 4 5M6 12h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="btn-label">Выйти</span></button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div class="mail-banner" id="mail-banner"><div><b>Подтвердите почту</b><p id="mail-banner-text"></p></div><button class="ghost-btn" id="mail-resend-btn" onclick="resendVerification()">Отправить письмо</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card" id="auth-card"><div class="oauth-block" id="oauth-block" hidden><div id="oauth-buttons"></div><div class="oauth-sep"><span>или почта и пароль</span></div></div><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="auth-forgot" id="auth-forgot"><button type="button" class="link-btn" onclick="openPasswordReset()">Не помню пароль</button></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div><div class="auth-card" id="mail-check-card" hidden><h2 id="mail-check-title">Проверьте почту</h2><p class="auth-sub" id="mail-check-sub"></p><div class="mail-check-addr" id="mail-check-addr"></div><div class="auth-error" id="mail-check-error"></div><button class="primary-btn" id="mail-check-resend" onclick="resendFromCheck()">Отправить письмо ещё раз</button><button class="ghost-btn" id="mail-check-retry" onclick="retryFromCheck()" hidden>Запросить новое письмо</button><button class="ghost-btn" onclick="closeMailCheck()">Вернуться ко входу</button></div><div class="auth-card" id="reset-card" hidden><h2>Сброс пароля</h2><p class="auth-sub">Укажите адрес, на который зарегистрирован аккаунт: пришлём ссылку для нового пароля.</p><form id="reset-form" onsubmit="submitPasswordResetRequest(event)"><div class="field"><label>Email</label><input id="reset-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="auth-error" id="reset-error"></div><button class="primary-btn" type="submit" id="reset-submit">Отправить ссылку</button></form><button class="ghost-btn" onclick="closePasswordReset()">Вернуться ко входу</button></div><div class="auth-card" id="newpass-card" hidden><h2>Новый пароль</h2><p class="auth-sub">Придумайте пароль не короче 8 символов. Все другие сессии аккаунта будут завершены.</p><form id="newpass-form" onsubmit="submitNewPassword(event)"><div class="field"><label>Новый пароль</label><input id="newpass-value" type="password" placeholder="Минимум 8 символов" autocomplete="new-password" minlength="8" required></div><div class="field"><label>Повторите пароль</label><input id="newpass-repeat" type="password" autocomplete="new-password" minlength="8" required></div><div class="auth-error" id="newpass-error"></div><button class="primary-btn" type="submit">Сохранить пароль</button></form></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div class="cabinet-actions"><button class="primary-btn" onclick="handleAddEventClick()" title="Добавить событие" aria-label="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button><button class="ghost-btn" onclick="handleLogout()" title="Выйти" aria-label="Выйти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 7l-4 5 4 5M6 12h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="btn-label">Выйти</span></button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div class="mail-banner" id="mail-banner"><div><b>Подтвердите почту</b><p id="mail-banner-text"></p></div><button class="ghost-btn" id="mail-resend-btn" onclick="resendVerification()">Отправить письмо</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
   </main>
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="admin">Админка</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <footer class="site-footer">
@@ -1777,6 +1777,10 @@
           // Профиль мог быть загружен до подтверждения — обновляем статус,
           // иначе баннер в кабинете останется висеть.
           await refreshProfile();
+          // Ссылку открыли в том же браузере, где вводили пароль: входим
+          // сразу, без экрана «теперь можно войти».
+          if (getPendingToken()) { await checkPendingVerify(); return; }
+          if (getAccessToken()) { renderCabinet(); showScreen('auth'); return; }
           toast('Почта подтверждена — теперь можно войти.');
           return;
         }
@@ -1805,6 +1809,79 @@
     let mailCheckMode = 'verify';
     let resendTimer = null;
     let resetToken = '';
+
+    // «Ожидающий» токен: пароль уже вводили, но адрес ещё не подтверждён. По
+    // нему экран входит сам, как только письмо откроют на другом устройстве
+    // (телефоне) — без повторного ввода пароля. Храним в localStorage, а не в
+    // sessionStorage: ссылка из письма часто открывается в новой вкладке, и
+    // такая вкладка не увидела бы токен, если он лежал в памяти соседней.
+    // Живёт сутки и стирается при выходе — это не постоянный вход.
+    const PENDING_KEY = 'afisha_pending_verify';
+    let verifyPollTimer = null;
+
+    function getPendingToken() {
+      try { return localStorage.getItem(PENDING_KEY) || ''; } catch { return ''; }
+    }
+    function setPendingToken(token) {
+      try {
+        if (token) localStorage.setItem(PENDING_KEY, token);
+        else localStorage.removeItem(PENDING_KEY);
+      } catch { /* приватный режим — просто не запоминаем */ }
+      if (!token) stopVerifyPolling();
+    }
+    function stopVerifyPolling() {
+      if (verifyPollTimer) { clearInterval(verifyPollTimer); verifyPollTimer = null; }
+    }
+
+    async function enterFromPending(data) {
+      stopVerifyPolling();
+      setPendingToken('');
+      setSession(data.access_token, data.refresh_token, data.user || null);
+      if (!data.user) {
+        try {
+          const meResp = await fetch(`${API_BASE}/auth/me`, {
+            headers: {'X-Auth-Token': `${data.access_token}`},
+          });
+          if (meResp.ok) setSession(data.access_token, data.refresh_token, await meResp.json());
+        } catch (e) { /* без профиля всё равно входим */ }
+      }
+      const user = getStoredUser();
+      await loadFavorites();
+      updateNotifBadge();
+      toast(`Почта подтверждена. Добро пожаловать${user && user.full_name ? ', ' + user.full_name : ''}!`);
+      renderCabinet();
+      showScreen('auth');
+    }
+
+    async function checkPendingVerify() {
+      const token = getPendingToken();
+      if (!token) { stopVerifyPolling(); return; }
+      try {
+        const resp = await fetch(`${API_BASE}/auth/verify-status`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({pending_token: token}),
+        });
+        // 401 — токен протух или подменён: молча ждём человека у кнопки.
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.status === 'verified') await enterFromPending(data);
+      } catch (e) { /* сеть моргнула — следующий круг */ }
+    }
+
+    function startVerifyPolling() {
+      stopVerifyPolling();
+      if (!getPendingToken()) return;
+      // Сразу и дальше раз в 5 секунд: письмо на телефоне открывают через
+      // минуту-две, а держать человека в неведении всё это время незачем.
+      checkPendingVerify();
+      verifyPollTimer = setInterval(checkPendingVerify, 5000);
+    }
+    // Вернулись в вкладку из почты на этом же устройстве — спрашиваем сразу,
+    // не дожидаясь тика таймера.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && getPendingToken()) checkPendingVerify();
+    });
 
     // detail у ошибок бывает строкой (старые роуты) и объектом с кодом и
     // message (новые: {code: 'email_not_verified', ...}). Один разбор на всех.
@@ -1868,6 +1945,11 @@
       document.getElementById('mail-check-retry').hidden = mailCheckMode !== 'reset';
       showAuthPanel('check');
       startResendCooldown(mailCheckMode === 'verify' ? (opts.cooldown || 0) : 0);
+      if (mailCheckMode === 'verify') {
+        setPendingToken(opts.pendingToken || '');
+        // Есть токен — вкладка умеет войти сама, как только адрес подтвердят.
+        if (getPendingToken()) startVerifyPolling();
+      }
     }
 
     async function resendFromCheck() {
@@ -1902,6 +1984,7 @@
 
     function closeMailCheck() {
       if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
+      stopVerifyPolling();
       showAuthPanel('form');
       renderCabinet();
     }
@@ -2774,8 +2857,9 @@
             showMailCheck({
               email,
               title: 'Проверьте почту',
-              sub: `Мы отправили ссылку для подтверждения на ${email}. Перейдите по ней — и кабинет откроется. Письма нет? Проверьте папку «Спам».`,
+              sub: `Мы отправили ссылку на ${email}. Откройте её на любом устройстве — эта страница войдёт сама. Письма нет? Проверьте папку «Спам».`,
               cooldown: 60,
+              pendingToken: data.pending_token || '',
             });
             return;
           }
@@ -2799,8 +2883,9 @@
             showMailCheck({
               email: detail.email || email,
               title: 'Подтвердите почту',
-              sub: detail.message,
+              sub: (detail.message || '') + ' Откройте письмо на любом устройстве — эта страница войдёт сама.',
               cooldown: detail.sent ? 60 : 0,
+              pendingToken: detail.pending_token || '',
             });
             return;
           }
@@ -2844,6 +2929,13 @@
       // Прошлое доказательство капчи уже погашено — не оставляем «Готово ✓»
       // на форме входа для следующего человека за этим устройством.
       resetCaptcha('auth-captcha');
+      // Кабинет закрыт вместе с сессией: оставаться на его экране — значит
+      // показывать пустую форму там, где человек только что был внутри.
+      stopVerifyPolling();
+      setPendingToken('');
+      showAuthPanel('form');
+      renderCabinet();
+      showScreen('home');
       toast('Вы вышли из кабинета');
     }
 

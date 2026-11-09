@@ -23,6 +23,7 @@ from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
 from .models import Identity, RefreshToken, User, utcnow
 from .security import (
     create_access_token,
+    create_pending_token,
     create_refresh_token,
     decode_access_token,
     hash_password,
@@ -74,6 +75,11 @@ class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 
+class PendingTokenRequest(BaseModel):
+    # Токен, выданный при регистрации или при отказе «подтвердите почту».
+    pending_token: str = Field(min_length=16, max_length=2000)
+
+
 class PasswordResetConfirm(BaseModel):
     token: str = Field(min_length=16, max_length=200)
     # Тот же минимум, что при регистрации: сброс не должен разрешать пароль,
@@ -96,6 +102,13 @@ class UserOut(BaseModel):
     identities: list[str] = []
 
     model_config = {"from_attributes": True}
+
+
+class RegisterOut(UserOut):
+    """Профиль плюс «ожидающий» токен: по нему это устройство войдёт само,
+    как только адрес подтвердят с другого устройства (телефона)."""
+
+    pending_token: str | None = None
 
 
 class TokenPair(BaseModel):
@@ -363,12 +376,12 @@ def build_auth_routes(
         challenge_limiter.hit(ip)
         return local_captcha.issue(session, ip)
 
-    @router.post("/register", response_model=UserOut, status_code=201)
+    @router.post("/register", response_model=RegisterOut, status_code=201)
     def register(
         payload: RegisterRequest,
         request: Request,
         session: Session = Depends(get_session),
-    ) -> UserOut:
+    ) -> RegisterOut:
         if register_limiter is not None:
             # Защита от массовой регистрации с одного адреса при публичном доступе.
             register_limiter.check(client_ip(request))
@@ -424,10 +437,15 @@ def build_auth_routes(
         session.refresh(user)
         if register_limiter is not None:
             register_limiter.hit(client_ip(request))
+        pending_token = None
         if mail_enabled:
             # Аккаунт уже создан: сбой отправки не должен отменять регистрацию.
             send_confirmation(session, user, request)
-        return serialize_user(user)
+            # Токен нужен экрану «проверьте почту»: если адрес подтвердят с
+            # телефона, эта вкладка войдёт сама, без повторного ввода пароля.
+            if not user.email_verified:
+                pending_token = create_pending_token(user)
+        return RegisterOut(**serialize_user(user).model_dump(), pending_token=pending_token)
 
     @router.post("/login", response_model=TokenPair)
     def login(
@@ -475,6 +493,9 @@ def build_auth_routes(
                     "code": "email_not_verified",
                     "email": user.email,
                     "sent": fresh,
+                    # Этой вкладке не нужно ждать пароля заново: как только
+                    # письмо подтвердят (хоть на телефоне), она войдёт сама.
+                    "pending_token": create_pending_token(user),
                     "message": (
                         f"Подтвердите почту — без этого вход закрыт. "
                         + (
@@ -567,6 +588,42 @@ def build_auth_routes(
         if user is not None:
             body["user"] = serialize_user(user, login_methods(session, user.id)).model_dump()
         return body
+
+    @router.post("/verify-status")
+    def verify_status(
+        payload: PendingTokenRequest,
+        session: Session = Depends(get_session),
+    ) -> dict[str, object]:
+        """Ждёт ли это устройство подтверждения адреса — и входит, если да.
+
+        Сценарий: пароль вводили на компьютере, письмо открыли на телефоне.
+        Компьютер каждые несколько секунд спрашивает этот эндпоинт и, как
+        только адрес подтверждён, получает настоящую пару токенов. Пароль
+        повторно вводить не нужно, и в браузере он не хранится.
+        """
+        if not mail_enabled:
+            raise HTTPException(status_code=404, detail="Email confirmation is disabled")
+        try:
+            data = decode_access_token(payload.pending_token)
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Invalid pending token")
+        if data.get("type") != "pending" or data.get("sub") is None:
+            # Access-токен сюда подсунуть нельзя: он для других целей.
+            raise HTTPException(status_code=401, detail="Invalid pending token")
+        user = session.get(User, int(data["sub"]))
+        if user is None or not user.is_active:
+            raise HTTPException(status_code=401, detail="Invalid pending token")
+        if not user.email_verified:
+            return {"status": "pending", "email": user.email}
+        pair = _create_token_pair(session, user)
+        return {
+            "status": "verified",
+            "access_token": pair.access_token,
+            "refresh_token": pair.refresh_token,
+            "user": serialize_user(
+                user, login_methods(session, user.id)
+            ).model_dump(mode="json"),
+        }
 
     @router.post("/resend-verification")
     def resend_verification(
