@@ -463,6 +463,18 @@
     .org-banner-actions { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
     .org-app { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
     .org-app .me-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    /* --- Модалка «кто вы» для гостя (ТЗ 4-2, п.1) --- */
+    /* Появляется только когда действию нужен аккаунт: смотреть афишу и ставить
+       лайки гость может без регистрации. */
+    .auth-choice { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(11, 26, 51, .55); }
+    .auth-choice[hidden] { display: none; }
+    .auth-choice-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; box-shadow: var(--shadow); }
+    .auth-choice-card h2 { font-size: 20px; margin: 0 0 6px; }
+    .auth-choice-card p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0 0 18px; }
+    .auth-choice-actions { display: grid; gap: 10px; }
+    .auth-choice-actions .primary-btn, .auth-choice-actions .ghost-btn { width: 100%; }
+    .auth-choice-card .auth-choice-note { margin: 16px 0 0; font-size: 12px; }
+    .auth-choice-card .auth-choice-note a { color: var(--accent); }
     .my-events-list { display: grid; gap: 12px; }
     .my-event { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
     .my-event .me-title { font-weight: 800; font-size: 15px; }
@@ -639,7 +651,7 @@
 
     <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn" id="prev-month" style="padding:7px 10px">← Предыдущий</button><h2 id="calendar-month">Август 2026</h2><button class="ghost-btn" id="next-month" style="padding:7px 10px">Следующий →</button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel day-events-panel"></div></div></div></section>
 
-    <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="toast('Спасибо, жалоба отправлена')">Пожаловаться</button></div></div></div></section>
+    <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="openAuthChoice('Чтобы пожаловаться на событие, войдите в аккаунт — жалобу рассматривает администратор.')">Пожаловаться</button></div></div></div></section>
 
     <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1 id="form-title">Добавить событие</h1><p id="form-sub">После отправки событие попадёт на проверку модератору.</p></div></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input id="f-title" placeholder="Например, «Город звучит»"></div><div class="field"><label>Категория *</label><select id="f-category"></select></div><div class="field"><label>Стоимость *</label><input id="f-price" placeholder="Бесплатно или от 350 ₽"></div><div class="field"><label>Дата *</label><input id="f-date" type="date"></div><div class="field"><label>Время начала *</label><input id="f-time" type="time"></div><div class="field full"><label>Место *</label><input id="f-venue" placeholder="Парк Гагарина"></div></div><div class="field full captcha-slot" id="event-captcha-field" data-captcha="event-captcha" hidden><label>Проверка</label><div id="event-captcha"></div></div><div class="form-actions"><button class="ghost-btn" onclick="cancelEventForm()">Отмена</button><button class="primary-btn" onclick="submitEventFromForm()" id="f-submit">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Событие попадёт на модерацию</span></div><div class="check"><i>✓</i><span>После одобрения появится в каталоге</span></div><div class="check"><i>✓</i><span>Вы сможете редактировать и снимать событие</span></div><div class="check"><i>✓</i><span>Не более 20 предстоящих событий у организатора</span></div></div></aside></div></div></section>
 
@@ -700,6 +712,18 @@
     <div class="cookie-actions">
       <button class="primary-btn" type="button" onclick="setCookieChoice('accepted')">Принять</button>
       <button class="ghost-btn" type="button" onclick="setCookieChoice('rejected')">Отклонить</button>
+    </div>
+  </div>
+  <div class="auth-choice" id="auth-choice" hidden>
+    <div class="auth-choice-card" role="dialog" aria-modal="true" aria-labelledby="auth-choice-title">
+      <h2 id="auth-choice-title">Выберите, кто вы</h2>
+      <p id="auth-choice-text">Войдите, чтобы продолжить.</p>
+      <div class="auth-choice-actions">
+        <button class="primary-btn" type="button" onclick="chooseRole('visitor')">Я посетитель</button>
+        <button class="primary-btn" type="button" onclick="chooseRole('organizer')">Я организатор</button>
+        <button class="ghost-btn" type="button" onclick="closeAuthChoice()">Продолжить просмотр</button>
+      </div>
+      <p class="auth-choice-note">Вход один для всех: роль определяется по аккаунту. Уже есть аккаунт — <a href="#" onclick="chooseRole(); return false;">войти</a>.</p>
     </div>
   </div>
   <div class="toast" id="toast"></div>
@@ -834,7 +858,10 @@
     }
 
     async function performFavoriteToggle(id) {
-      if (!getAccessToken()) { toast('Войдите, чтобы добавлять в избранное'); showScreen('auth'); return; }
+      if (!getAccessToken()) {
+        openAuthChoice('Чтобы добавлять события в избранное и не терять их при смене устройства, войдите в аккаунт.');
+        return;
+      }
       const fav = favoriteIds.has(id);
       try {
         const resp = await fetch(`${API_BASE}/me/favorites/${id}`, {
@@ -2566,6 +2593,46 @@
         toast(error.message);
         loadAdminUsers(); // откат select при ошибке
       }
+    }
+
+    // === Гость: «кто вы» перед действием, которому нужен аккаунт ===
+    // Раньше клик по сердечку сразу выбрасывал на экран входа и человек не
+    // понимал, зачем его просят регистрироваться. Теперь — короткий выбор:
+    // посетитель (лёгкая форма) или организатор (расширенная), либо закрыть.
+    function openAuthChoice(text) {
+      const modal = document.getElementById('auth-choice');
+      if (!modal) { showScreen('auth'); return; }
+      const body = document.getElementById('auth-choice-text');
+      if (body) body.textContent = text || 'Войдите, чтобы продолжить.';
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeAuthChoice() {
+      const modal = document.getElementById('auth-choice');
+      if (!modal) return;
+      modal.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    // kind — 'visitor' | 'organizer' | undefined (undefined = просто войти).
+    function chooseRole(kind) {
+      closeAuthChoice();
+      showScreen('auth');
+      if (!kind) { switchAuthMode('login'); return; }
+      switchAuthMode('register');
+      setAuthKind(kind);
+    }
+
+    const authChoiceBox = document.getElementById('auth-choice');
+    if (authChoiceBox) {
+      // Клик по подложке закрывает, клик по карточке — нет.
+      authChoiceBox.addEventListener('click', (e) => {
+        if (e.target === authChoiceBox) closeAuthChoice();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !authChoiceBox.hidden) closeAuthChoice();
+      });
     }
 
     // === Заявка на организатора: баннер в кабинете ===
