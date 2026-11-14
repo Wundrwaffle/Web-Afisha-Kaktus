@@ -1,5 +1,7 @@
 import logging
-from datetime import datetime
+import re
+from datetime import date, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
@@ -20,7 +22,7 @@ from .captcha import (
 )
 from .db import session_dependency
 from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
-from .models import Identity, RefreshToken, User, utcnow
+from .models import Identity, OrganizerApplication, RefreshToken, User, utcnow
 from .security import (
     create_access_token,
     create_pending_token,
@@ -35,7 +37,22 @@ from .security import (
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    full_name: str = Field(min_length=2, max_length=160)
+    # Имя необязательно: у посетителя его в форме нет, и тогда подписью служит
+    # логин. Организатор присылает полное ФИО — оно обязательно (см. валидацию).
+    full_name: str | None = Field(default=None, max_length=160)
+    # Логин для входа. В форме он обязателен; API принимает и без него — старые
+    # клиенты и тесты шлют только почту, тогда логин выводится из адреса.
+    login: str | None = Field(default=None, min_length=3, max_length=64)
+    birth_date: date | None = None
+    # Кто регистрируется. Организатор — тот же аккаунт visitor плюс заявка
+    # на проверку: роль меняет только администратор.
+    account_type: Literal["visitor", "organizer"] = "visitor"
+    org_name: str | None = Field(default=None, max_length=200)
+    inn: str | None = Field(default=None, max_length=16)
+    phone: str | None = Field(default=None, max_length=40)
+    city: str | None = Field(default=None, max_length=120)
+    social_personal: str | None = Field(default=None, max_length=300)
+    social_org: str | None = Field(default=None, max_length=300)
     # Токен Яндекс SmartCaptcha. Обязателен только когда капча включена ключами;
     # в dev и тестах поля нет — клиенты, которые о нём не знают, не ломаются.
     captcha_token: str | None = None
@@ -46,7 +63,11 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Вход один для всех ролей: человек вводит логин ИЛИ адрес почты.
+    # `email` оставлен для старых клиентов (и тестов), новый фронт шлёт `login`
+    # с тем, что человек набрал, — почту в том числе.
+    email: EmailStr | None = None
+    login: str | None = Field(default=None, max_length=320)
     password: str
     # Капча на входе: защищает от перебора паролей ботами. Как и в регистрации,
     # поле необязательно — при выключенной проверке клиенты о нём не знают.
@@ -91,11 +112,30 @@ class UserOut(BaseModel):
     id: int
     email: str
     full_name: str
+    # Логин для входа; у аккаунтов, заведённых до его появления, пусто, пока
+    # бэкфилл при старте не проставит значение из адреса.
+    login: str | None = None
+    # Профиль посетителя/организатора. Нужен кабинету, чтобы форма повторной
+    # заявки открывалась с уже заполненными полями, а не пустой.
+    birth_date: date | None = None
+    phone: str | None = None
+    city: str | None = None
+    org_name: str | None = None
+    inn: str | None = None
+    social_personal: str | None = None
+    social_org: str | None = None
     role: str
     is_active: bool
     # Подтверждён ли адрес ссылкой из письма. Фронт по нему показывает баннер
     # и кнопку «Отправить письмо ещё раз».
     email_verified: bool = False
+    # Статус последней заявки на организатора: pending | approved | rejected.
+    # По нему кабинет рисует зелёный/оранжевый баннер, поэтому он приходит
+    # вместе с профилем, а не отдельным запросом на каждый экран.
+    organizer_status: str | None = None
+    # Причина отказа — её кабинет показывает в баннере, чтобы человек знал,
+    # что исправить перед повторной заявкой.
+    organizer_note: str | None = None
     # Способы входа: пусто — обычный аккаунт с паролем, ["yandex"] — создан
     # через Яндекс ID. Нужно фронту, чтобы не предлагать «забыли пароль» такому
     # аккаунту и показать, как он входит.
@@ -136,12 +176,78 @@ def app_token(
     return api_key or bearer
 
 
-def serialize_user(user: User, methods: list[str] | None = None) -> UserOut:
+def serialize_user(
+    user: User,
+    methods: list[str] | None = None,
+    organizer_status: str | None = None,
+    organizer_note: str | None = None,
+) -> UserOut:
     """Профиль для фронта. `methods` — провайдеры, привязанные к аккаунту."""
     data = UserOut.model_validate(user)
     if methods:
         data.identities = methods
+    if organizer_status:
+        data.organizer_status = organizer_status
+    if organizer_note:
+        data.organizer_note = organizer_note
     return data
+
+
+def organizer_review_for(
+    session: Session, user_id: int
+) -> tuple[str | None, str | None]:
+    """Статус и причина по последней заявке на организатора.
+
+    Пара возвращается одним запросом: кабинет показывает их вместе (баннер
+    «отклонено» без причины выглядит как отказ без объяснений).
+    """
+    row = session.execute(
+        select(OrganizerApplication.status, OrganizerApplication.note)
+        .where(OrganizerApplication.user_id == user_id)
+        .order_by(
+            OrganizerApplication.created_at.desc(), OrganizerApplication.id.desc()
+        )
+        .limit(1)
+    ).first()
+    if row is None:
+        return None, None
+    return row[0], row[1]
+
+
+# Логин: 3–64 символа, начинается с буквы или цифры, дальше допустимы точка,
+# дефис и подчёркивание. Почту в логине не разрешаем — иначе «логин или email»
+# превратился бы в два адреса и путаницу при входе.
+LOGIN_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
+LOGIN_ERROR = (
+    "Логин: 3–64 символа, буквы и цифры (можно точку, дефис, подчёркивание), "
+    "начинается с буквы или цифры."
+)
+
+
+def normalize_login(value: str | None) -> str | None:
+    """Логин в нижнем регистре без пробелов по краям; пустое → None."""
+    login = (value or "").strip().lower()
+    return login or None
+
+
+def unique_login(session: Session, base: str) -> str:
+    """Свободный логин на основе предложенного: base, base2, base3, …
+
+    Нужен для регистраций без логина (старые клиенты, тесты) и для бэкфилла
+    существующих аккаунтов, где из адреса получаются одинаковые префиксы.
+    """
+    cleaned = re.sub(r"[^a-z0-9._-]", "", (base or "").lower())[:60].strip("._-")
+    if len(cleaned) < 3:
+        cleaned = f"{cleaned}user".strip("._-") if cleaned else "user"
+    if len(cleaned) < 3:
+        cleaned = "user"
+    candidate = cleaned
+    counter = 2
+    while session.scalar(select(User.id).where(User.login == candidate)) is not None:
+        suffix = str(counter)
+        candidate = f"{cleaned[: 64 - len(suffix)]}{suffix}"
+        counter += 1
+    return candidate
 
 
 def login_methods(session: Session, user_id: int) -> list[str]:
@@ -392,6 +498,59 @@ def build_auth_routes(
             # фронт сбрасывает виджет и предлагает пройти её заново.
             raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
         email = payload.email.lower()
+        # Пустые строки формы — это «не заполнено». Приводим один раз, чтобы
+        # валидация и запись в БД смотрели на одно и то же значение.
+        def _clean(value: str | None) -> str | None:
+            return (value or "").strip() or None
+
+        is_organizer = payload.account_type == "organizer"
+        org_fields = {
+            "org_name": _clean(payload.org_name),
+            "inn": _clean(payload.inn),
+            "phone": _clean(payload.phone),
+            "city": _clean(payload.city),
+            "social_personal": _clean(payload.social_personal),
+            "social_org": _clean(payload.social_org),
+        }
+        if is_organizer:
+            # У организатора ФИО, телефон и город обязательны: по ним админ
+            # проверяет заявку и связывается с человеком.
+            missing = [
+                title
+                for title, value in (
+                    ("ФИО", _clean(payload.full_name)),
+                    ("телефон", org_fields["phone"]),
+                    ("город", org_fields["city"]),
+                )
+                if not value
+            ]
+            if missing:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "organizer_fields",
+                        "message": "Заполните обязательные поля: " + ", ".join(missing) + ".",
+                    },
+                )
+        # Логин отдельно от почты: по нему тоже можно войти. Без логина
+        # (старые клиенты, тесты) выводим его из адреса, чтобы поле не осталось
+        # пустым и вход по логину работал у всех.
+        login = normalize_login(payload.login)
+        if login is not None:
+            if not LOGIN_PATTERN.match(login):
+                raise HTTPException(
+                    status_code=400, detail={"code": "login_invalid", "message": LOGIN_ERROR}
+                )
+            if session.scalar(select(User.id).where(User.login == login)) is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "login_taken",
+                        "message": f"Логин «{login}» уже занят — выберите другой.",
+                    },
+                )
+        else:
+            login = unique_login(session, email.split("@")[0])
         existing = session.scalar(select(User).where(User.email == email))
         if existing is not None:
             # Адрес занят неподтверждённым аккаунтом. Отказ 409 здесь — тупик:
@@ -424,17 +583,39 @@ def build_auth_routes(
         user = User(
             email=email,
             password_hash=hash_password(payload.password),
-            full_name=payload.full_name,
+            full_name=(_clean(payload.full_name) or login),
+            login=login,
+            birth_date=payload.birth_date,
             role="visitor",
+            **org_fields,
         )
         session.add(user)
         try:
             session.commit()
         except IntegrityError:
-            # Гонка: параллельная регистрация с тем же email.
+            # Гонка: параллельная регистрация с тем же email (или логином).
             session.rollback()
             raise HTTPException(status_code=409, detail="Email already registered")
         session.refresh(user)
+        organizer_status = None
+        if is_organizer:
+            # Регистрация организатора сразу создаёт заявку на проверку: роль
+            # остаётся visitor, пока администратор не одобрит (ТЗ, п.2.2).
+            application = OrganizerApplication(
+                user_id=user.id,
+                status="pending",
+                full_name=user.full_name,
+                phone=org_fields["phone"],
+                city=org_fields["city"],
+                org_name=org_fields["org_name"],
+                inn=org_fields["inn"],
+                social_personal=org_fields["social_personal"],
+                social_org=org_fields["social_org"],
+                birth_date=user.birth_date,
+            )
+            session.add(application)
+            session.commit()
+            organizer_status = "pending"
         if register_limiter is not None:
             register_limiter.hit(client_ip(request))
         pending_token = None
@@ -445,7 +626,10 @@ def build_auth_routes(
             # телефона, эта вкладка войдёт сама, без повторного ввода пароля.
             if not user.email_verified:
                 pending_token = create_pending_token(user)
-        return RegisterOut(**serialize_user(user).model_dump(), pending_token=pending_token)
+        return RegisterOut(
+            **serialize_user(user, organizer_status=organizer_status).model_dump(),
+            pending_token=pending_token,
+        )
 
     @router.post("/login", response_model=TokenPair)
     def login(
@@ -453,18 +637,27 @@ def build_auth_routes(
         request: Request,
         session: Session = Depends(get_session),
     ) -> TokenPair:
-        email = payload.email.lower()
+        # Вход один для всех: в поле можно набрать логин или почту. Определяем по
+        # наличию «@» — почта всегда содержит его, логин мы его запрещаем.
+        identifier = (
+            payload.login or (str(payload.email) if payload.email else "")
+        ).strip().lower()
+        if not identifier:
+            raise HTTPException(status_code=401, detail="Введите логин или почту")
         ip = client_ip(request)
         # Лимит проверяется ДО проверки пароля: иначе перебор не остановить.
         if login_limiter is not None:
-            login_limiter.check(ip, email)
+            login_limiter.check(ip, identifier)
         # Капча — тоже до пароля: бот не должен даже узнавать, есть ли аккаунт.
         if captcha_enabled and not captcha_passed(payload, ip, session):
             raise HTTPException(status_code=400, detail=CAPTCHA_FAILED_MESSAGE)
-        user = session.scalar(select(User).where(User.email == email))
+        if "@" in identifier:
+            user = session.scalar(select(User).where(User.email == identifier))
+        else:
+            user = session.scalar(select(User).where(User.login == identifier))
         if user is None or not verify_password(payload.password, user.password_hash):
             if login_limiter is not None:
-                login_limiter.register_failure(ip, email)
+                login_limiter.register_failure(ip, identifier)
             # Аккаунт, созданный через Яндекс ID, пароля не имеет (в password_hash
             # лежит случайный хеш). Без подсказки человек ищет «забыли пароль»
             # и не понимает, почему вход не работает.
@@ -509,7 +702,7 @@ def build_auth_routes(
         if login_limiter is not None:
             # Успешный вход обнуляет счётчик по аккаунту: опечатки не должны
             # запирать владельца, а лимит по IP продолжает накапливаться.
-            login_limiter.clear_for(ip, email)
+            login_limiter.clear_for(ip, identifier)
         return _create_token_pair(session, user)
 
     @router.post("/refresh", response_model=TokenPair)
@@ -552,7 +745,13 @@ def build_auth_routes(
         current_user: User = Depends(get_current_user),
         session: Session = Depends(get_session),
     ) -> UserOut:
-        return serialize_user(current_user, login_methods(session, current_user.id))
+        status, note = organizer_review_for(session, current_user.id)
+        return serialize_user(
+            current_user,
+            login_methods(session, current_user.id),
+            status,
+            note,
+        )
 
     # --- Подтверждение почты ---
     @router.get("/mail")
@@ -616,12 +815,16 @@ def build_auth_routes(
         if not user.email_verified:
             return {"status": "pending", "email": user.email}
         pair = _create_token_pair(session, user)
+        status, note = organizer_review_for(session, user.id)
         return {
             "status": "verified",
             "access_token": pair.access_token,
             "refresh_token": pair.refresh_token,
             "user": serialize_user(
-                user, login_methods(session, user.id)
+                user,
+                login_methods(session, user.id),
+                status,
+                note,
             ).model_dump(mode="json"),
         }
 

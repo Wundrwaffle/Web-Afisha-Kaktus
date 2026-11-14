@@ -38,6 +38,7 @@ from .legal import register_legal_routes
 from .mail import MailConfig, Mailer, build_mailer
 from .mail import config_from_env as mail_config_from_env
 from .oauth import OAuthConfig, build_oauth_routes, config_from_env as oauth_config_from_env
+from .organizers import build_organizer_routes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -213,6 +214,57 @@ def create_app(
                         "ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 0"
                     ))
                     _conn.execute(_text("UPDATE users SET email_verified = 1"))
+            # Профиль посетителя/организатора и логин: колонки появились позже
+            # (разделение регистрации на посетителя и организатора).
+            for _cname, _cddl in (
+                ("login", "VARCHAR(64)"),
+                ("birth_date", "DATE"),
+                ("phone", "VARCHAR(40)"),
+                ("city", "VARCHAR(120)"),
+                ("org_name", "VARCHAR(200)"),
+                ("inn", "VARCHAR(16)"),
+                ("social_personal", "VARCHAR(300)"),
+                ("social_org", "VARCHAR(300)"),
+            ):
+                if _cname not in _ucols:
+                    with engine.begin() as _conn:
+                        _conn.execute(
+                            _text(f"ALTER TABLE users ADD COLUMN {_cname} {_cddl}")
+                        )
+            with engine.begin() as _conn:
+                # Уникальность логина — отдельным индексом: ALTER TABLE ADD
+                # COLUMN UNIQUE в SQLite не поддерживается. NULL-значений
+                # индекс не касается, поэтому старые аккаунты ему не мешают.
+                _conn.execute(_text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_login ON users (login)"
+                ))
+                # Бэкфилл логина существующим аккаунтам: они регистрировались,
+                # когда логина ещё не было, а вход по нему должен работать у
+                # всех. Берём префикс адреса; совпадения разводим суффиксом id,
+                # иначе уникальный индекс отвергнет вторую такую же запись.
+                _rows = _conn.execute(
+                    _text("SELECT id, email, login FROM users")
+                ).fetchall()
+                _used = {(row[2] or "").lower() for row in _rows if row[2]}
+                for _uid, _uemail, _ulogin in _rows:
+                    if _ulogin:
+                        continue
+                    _base = (_uemail or "user").split("@")[0].lower()
+                    _base = "".join(
+                        ch for ch in _base if ch.isalnum() or ch in "._-"
+                    )[:56]
+                    if len(_base) < 3:
+                        _base = (_base + "user")[:56]
+                    _candidate = _base
+                    if _candidate in _used:
+                        _candidate = f"{_base}{_uid}"
+                    while _candidate in _used:
+                        _candidate = f"{_candidate}x"
+                    _used.add(_candidate)
+                    _conn.execute(
+                        _text("UPDATE users SET login = :login WHERE id = :id"),
+                        {"login": _candidate, "id": _uid},
+                    )
         # Почта по уведомлениям: emailed_at — письмо ушло, email_attempts —
         # сколько раз пытались. Без этих колонок ORM не прочитает уведомления,
         # поэтому добиваем их здесь же, до первого запроса.
@@ -315,6 +367,21 @@ def create_app(
         providers=oauth_providers,
     )
     app.include_router(oauth["router"])
+
+    # Заявки на организатора: подача из кабинета и проверка в админке.
+    # notify передаём внутрь — одобрение и отказ обязаны дойти до человека и
+    # письмом, и уведомлением в кабинет (ТЗ, п.6).
+    app.include_router(
+        build_organizer_routes(
+            session_factory,
+            get_session=get_session,
+            get_current_user=get_current_user,
+            require_role=require_role,
+            mailer=mailer,
+            require_verified_email=require_verified_email,
+            notify=notify,
+        )
+    )
 
     @app.get("/api/v1/health")
     def health_check() -> dict[str, str]:
@@ -826,9 +893,11 @@ def create_app(
         return {
             "id": user.id,
             "email": user.email,
+            "login": user.login,
             "full_name": user.full_name,
             "role": user.role,
             "is_active": user.is_active,
+            "email_verified": user.email_verified,
             "created_at": user.created_at.isoformat() if user.created_at else None,
         }
 

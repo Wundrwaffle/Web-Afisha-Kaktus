@@ -39,6 +39,21 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    # Логин для входа — отдельно от почты: человек вводит «логин или email».
+    # NULL у аккаунтов, созданных до появления логина: вход по адресу работает,
+    # а бэкфилл проставляет им логин из адреса при старте приложения.
+    login: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
+    # Профиль посетителя/организатора. Заполняется при регистрации или при
+    # подаче заявки на организатора; у посетителя большинство полей пустые.
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    org_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    social_personal: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    social_org: Mapped[str | None] = mapped_column(String(300), nullable=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="visitor")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Подтверждён ли адрес ссылкой из письма. Вход без подтверждения закрыт,
@@ -74,6 +89,46 @@ class Identity(Base):
     display_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     linked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class OrganizerApplication(Base):
+    """Заявка на статус организатора — отдельная сущность, а не флаг на users.
+
+    Причина: заявку можно отклонить и подать повторно, а история проверок и
+    причина отказа должны сохраняться. Роль в users при этом не меняется, пока
+    администратор не одобрит заявку (до одобрения человек остаётся visitor).
+    Поля профиля дублируются снимком: заявку проверяют по тому, что человек
+    отправил, даже если позже он поправит профиль.
+    """
+
+    __tablename__ = "organizer_applications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    # pending | approved | rejected
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pending", index=True
+    )
+    full_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    phone: Mapped[str] = mapped_column(String(40), nullable=False)
+    city: Mapped[str] = mapped_column(String(120), nullable=False)
+    org_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    social_personal: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    social_org: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Причина отказа — её видит организатор в кабинете и в письме.
+    note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow, index=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reviewed_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    # Когда админам уже напомнили, что заявка висит дольше двух рабочих дней.
+    # Поле, а не отдельная таблица: напоминание нужно ровно одно на заявку.
+    stale_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class RefreshToken(Base):
