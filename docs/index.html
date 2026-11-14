@@ -442,6 +442,27 @@
     .mail-banner b { font-size: 14px; }
     .mail-banner p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
     .mail-banner .ghost-btn { flex: 0 0 auto; }
+    /* --- Разделение регистрации: посетитель / организатор --- */
+    .auth-kind { display: flex; gap: 6px; background: var(--surface-2); border-radius: 12px; padding: 5px; }
+    .auth-kind-btn { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 11px 8px; font-family: inherit; font-weight: 800; font-size: 13px; color: var(--muted); cursor: pointer; transition: .15s; white-space: nowrap; }
+    .auth-kind-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-tab); }
+    .auth-consents { display: grid; gap: 9px; margin: 4px 0 16px; }
+    .auth-consents[hidden] { display: none; }
+    .auth-check { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); cursor: pointer; }
+    .auth-check input { margin: 2px 0 0; flex: none; width: 16px; height: 16px; accent-color: var(--accent); }
+    .auth-check a { color: var(--accent); }
+    .auth-check[hidden] { display: none; }
+    /* Баннер статуса заявки на организатора: зелёный — одобрено, жёлтый —
+       на проверке или отказ с причиной. */
+    .org-banner { display: none; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+    .org-banner.show { display: flex; }
+    .org-banner.ok { background: var(--ok-bg); }
+    .org-banner.warn { background: var(--warn-bg); }
+    .org-banner b { font-size: 14px; }
+    .org-banner p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+    .org-banner-actions { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+    .org-app { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+    .org-app .me-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .my-events-list { display: grid; gap: 12px; }
     .my-event { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
     .my-event .me-title { font-weight: 800; font-size: 15px; }
@@ -624,9 +645,24 @@
 
     <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Модерация</h1><p>Проверяйте новые события и управляйте опубликованными.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px" id="mod-tabs"><button class="chip active" data-mod-status="pending_moderation">На проверке</button><button class="chip" data-mod-status="published">Опубликованные</button><button class="chip" data-mod-status="rejected">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div></div></section>
 
-    <section id="admin" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Пользователи и роли</h1><p>Назначайте роли: visitor, organizer, moderator, admin.</p></div></div><div class="panel" id="admin-users-list" style="padding:0"></div></div></section>
+    <section id="organizer" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Стать организатором</div><h1>Разместить афишу</h1><p id="organizer-sub">Заполните данные — заявку проверит администратор, обычно до двух рабочих дней. Ответ придёт на почту.</p></div></div><div class="auth-layout"><div class="auth-card"><div class="auth-error" id="organizer-error"></div><form id="organizer-form" onsubmit="submitOrganizerApplication(event)"><div class="field"><label>ФИО полностью *</label><input id="og-fullname" placeholder="Иванов Иван Иванович" autocomplete="name" required></div><div class="field"><label>Телефон *</label><input id="og-phone" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel" required></div><div class="field"><label>Город *</label><input id="og-city" placeholder="Новокузнецк" required></div><div class="field"><label>Организация / ИП</label><input id="og-org" placeholder="Если есть"></div><div class="field"><label>ИНН</label><input id="og-inn" placeholder="Если есть" inputmode="numeric"></div><div class="field"><label>Личная соцсеть (VK/MAX)</label><input id="og-social" placeholder="https://vk.com/…"></div><div class="field"><label>Соцсеть организации</label><input id="og-social-org" placeholder="https://vk.com/…"></div><button class="primary-btn" type="submit">Отправить заявку</button></form><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="showScreen('auth')">Вернуться в кабинет</button></div></div></div></section>
 
-    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card" id="auth-card"><div class="oauth-block" id="oauth-block" hidden><div id="oauth-buttons"></div><div class="oauth-sep"><span>или почта и пароль</span></div></div><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите почту и пароль, чтобы войти в кабинет организатора.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-name-field" style="display:none"><label>Имя</label><input id="auth-name" placeholder="Ваше имя" autocomplete="name"></div><div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="auth-forgot" id="auth-forgot"><button type="button" class="link-btn" onclick="openPasswordReset()">Не помню пароль</button></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Регистрация доступна любому посетителю. Роль организатора назначает администратор — после этого вы сможете добавлять события.</div></div><div class="auth-card" id="mail-check-card" hidden><h2 id="mail-check-title">Проверьте почту</h2><p class="auth-sub" id="mail-check-sub"></p><div class="mail-check-addr" id="mail-check-addr"></div><div class="mail-check-wait" id="mail-check-wait" hidden>Ждём подтверждения — страница откроет кабинет сама.</div><div class="auth-error" id="mail-check-error"></div><button class="primary-btn" id="mail-check-resend" onclick="resendFromCheck()">Отправить письмо ещё раз</button><button class="ghost-btn" id="mail-check-retry" onclick="retryFromCheck()" hidden>Запросить новое письмо</button><button class="ghost-btn" onclick="closeMailCheck()">Вернуться ко входу</button></div><div class="auth-card" id="reset-card" hidden><h2>Сброс пароля</h2><p class="auth-sub">Укажите адрес, на который зарегистрирован аккаунт: пришлём ссылку для нового пароля.</p><form id="reset-form" onsubmit="submitPasswordResetRequest(event)"><div class="field"><label>Email</label><input id="reset-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="auth-error" id="reset-error"></div><button class="primary-btn" type="submit" id="reset-submit">Отправить ссылку</button></form><button class="ghost-btn" onclick="closePasswordReset()">Вернуться ко входу</button></div><div class="auth-card" id="newpass-card" hidden><h2>Новый пароль</h2><p class="auth-sub">Придумайте пароль не короче 8 символов. Все другие сессии аккаунта будут завершены.</p><form id="newpass-form" onsubmit="submitNewPassword(event)"><div class="field"><label>Новый пароль</label><input id="newpass-value" type="password" placeholder="Минимум 8 символов" autocomplete="new-password" minlength="8" required></div><div class="field"><label>Повторите пароль</label><input id="newpass-repeat" type="password" autocomplete="new-password" minlength="8" required></div><div class="auth-error" id="newpass-error"></div><button class="primary-btn" type="submit">Сохранить пароль</button></form></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div class="cabinet-actions"><button class="primary-btn" onclick="handleAddEventClick()" title="Добавить событие" aria-label="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button><button class="ghost-btn" onclick="handleLogout()" title="Выйти" aria-label="Выйти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 7l-4 5 4 5M6 12h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="btn-label">Выйти</span></button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div class="mail-banner" id="mail-banner"><div><b>Подтвердите почту</b><p id="mail-banner-text"></p></div><button class="ghost-btn" id="mail-resend-btn" onclick="resendVerification()">Отправить письмо</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
+    <section id="admin" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Пользователи и роли</h1><p>Назначайте роли: visitor, organizer, moderator, admin.</p></div></div><div class="section-head"><h2>Организаторы → На верификации</h2><span class="status pending" id="org-apps-counter">0 на проверке</span></div>
+      <div class="my-events-list" id="admin-org-apps" style="margin-bottom:26px"><div class="my-events-empty">Загружаем заявки…</div></div>
+      <div class="section-head"><h2>Пользователи и роли</h2></div>
+      <div class="panel" id="admin-users-list" style="padding:0"></div></div></section>
+
+    <section id="auth" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Вход в кабинет</div><h1>Личный кабинет</h1><p>Войдите, чтобы добавлять события и управлять ими. Новые пользователи могут зарегистрироваться.</p></div></div><div class="auth-layout" id="auth-layout"><div class="auth-card" id="auth-card"><div class="oauth-block" id="oauth-block" hidden><div id="oauth-buttons"></div><div class="oauth-sep"><span>или почта и пароль</span></div></div><div class="auth-tabs"><button class="auth-tab active" id="auth-tab-login">Вход</button><button class="auth-tab" id="auth-tab-register">Регистрация</button></div><div class="auth-error" id="auth-error"></div><h2 id="auth-title">Вход</h2><p class="auth-sub" id="auth-sub">Введите логин или почту и пароль.</p><form id="auth-form" onsubmit="handleAuthSubmit(event)"><div class="field" id="auth-kind-field" hidden><label>Кто вы?</label><div class="auth-kind" id="auth-kind"><button type="button" class="auth-kind-btn active" data-kind="visitor">Я посетитель</button><button type="button" class="auth-kind-btn" data-kind="organizer">Я организатор</button></div></div><div class="field" id="auth-login-field" hidden><label>Логин *</label><input id="auth-login" placeholder="Минимум 3 символа" autocomplete="username" minlength="3" maxlength="64"></div><div class="field"><label id="auth-email-label">Логин или email</label><input id="auth-email" type="text" placeholder="Логин или почта" autocomplete="username" required></div><div class="field"><label>Пароль</label><input id="auth-password" type="password" placeholder="Минимум 8 символов" autocomplete="current-password" required></div><div class="field" id="auth-birth-field" hidden><label>Дата рождения</label><input id="auth-birth" type="date" max="2012-12-31"></div><div id="auth-org-fields" hidden><div class="field"><label>ФИО полностью *</label><input id="auth-fullname" placeholder="Иванов Иван Иванович" autocomplete="name"></div><div class="field"><label>Телефон *</label><input id="auth-phone" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel"></div><div class="field"><label>Город *</label><input id="auth-city" placeholder="Новокузнецк"></div><div class="field"><label>Организация / ИП</label><input id="auth-org" placeholder="Если есть"></div><div class="field"><label>ИНН</label><input id="auth-inn" placeholder="Если есть" inputmode="numeric"></div><div class="field"><label>Личная соцсеть (VK/MAX)</label><input id="auth-social" placeholder="https://vk.com/…"></div><div class="field"><label>Соцсеть организации</label><input id="auth-social-org" placeholder="https://vk.com/…"></div></div><div class="auth-consents" id="auth-consents" hidden><label class="auth-check"><input type="checkbox" id="auth-terms"> <span>Я принимаю условия <a data-doc="terms" href="/terms" target="_blank" rel="noopener">Пользовательского соглашения</a></span></label><label class="auth-check"><input type="checkbox" id="auth-pdn"> <span>Я даю согласие на <a data-doc="privacy" href="/privacy" target="_blank" rel="noopener">обработку персональных данных</a></span></label><label class="auth-check" id="auth-responsibility-field" hidden><input type="checkbox" id="auth-responsibility"> <span>Я несу ответственность за размещаемый контент. Соглашение прочитал.</span></label></div><div class="auth-forgot" id="auth-forgot"><button type="button" class="link-btn" onclick="openPasswordReset()">Не помню пароль</button></div><div class="field captcha-slot" id="auth-captcha-field" data-captcha="auth-captcha" hidden><label>Проверка</label><div id="auth-captcha"></div></div><button class="primary-btn" type="submit" id="auth-submit">Войти</button></form><div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.5" id="auth-hint">Посетителю достаточно логина и почты. Размещать афиши можно после заявки на организатора — её проверяет администратор, поэтому вход один для всех: роль определяется по аккаунту.</div></div><div class="auth-card" id="mail-check-card" hidden><h2 id="mail-check-title">Проверьте почту</h2><p class="auth-sub" id="mail-check-sub"></p><div class="mail-check-addr" id="mail-check-addr"></div><div class="mail-check-wait" id="mail-check-wait" hidden>Ждём подтверждения — страница откроет кабинет сама.</div><div class="auth-error" id="mail-check-error"></div><button class="primary-btn" id="mail-check-resend" onclick="resendFromCheck()">Отправить письмо ещё раз</button><button class="ghost-btn" id="mail-check-retry" onclick="retryFromCheck()" hidden>Запросить новое письмо</button><button class="ghost-btn" onclick="closeMailCheck()">Вернуться ко входу</button></div><div class="auth-card" id="reset-card" hidden><h2>Сброс пароля</h2><p class="auth-sub">Укажите адрес, на который зарегистрирован аккаунт: пришлём ссылку для нового пароля.</p><form id="reset-form" onsubmit="submitPasswordResetRequest(event)"><div class="field"><label>Email</label><input id="reset-email" type="email" placeholder="you@example.com" autocomplete="email" required></div><div class="auth-error" id="reset-error"></div><button class="primary-btn" type="submit" id="reset-submit">Отправить ссылку</button></form><button class="ghost-btn" onclick="closePasswordReset()">Вернуться ко входу</button></div><div class="auth-card" id="newpass-card" hidden><h2>Новый пароль</h2><p class="auth-sub">Придумайте пароль не короче 8 символов. Все другие сессии аккаунта будут завершены.</p><form id="newpass-form" onsubmit="submitNewPassword(event)"><div class="field"><label>Новый пароль</label><input id="newpass-value" type="password" placeholder="Минимум 8 символов" autocomplete="new-password" minlength="8" required></div><div class="field"><label>Повторите пароль</label><input id="newpass-repeat" type="password" autocomplete="new-password" minlength="8" required></div><div class="auth-error" id="newpass-error"></div><button class="primary-btn" type="submit">Сохранить пароль</button></form></div></div><div id="cabinet" style="display:none"><div class="cabinet-head"><div><h2 id="cabinet-title">Мои события</h2><p id="cabinet-sub"></p></div><div class="cabinet-actions"><button class="primary-btn" onclick="handleAddEventClick()" title="Добавить событие" aria-label="Добавить событие"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span class="btn-label">Добавить событие</span></button><button class="ghost-btn" onclick="handleLogout()" title="Выйти" aria-label="Выйти"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 7l-4 5 4 5M6 12h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="btn-label">Выйти</span></button></div></div><div class="chips" id="cabinet-tabs" style="margin-bottom:14px"><button class="chip active" data-tab="my">Мои события</button><button class="chip" data-tab="fav">Избранное</button><button class="chip" data-tab="notif">Уведомления</button></div><div class="org-banner" id="org-banner" hidden>
+      <div>
+        <b id="org-banner-title"></b>
+        <p id="org-banner-text"></p>
+      </div>
+      <div class="org-banner-actions">
+        <button class="primary-btn" id="org-banner-primary" onclick="orgBannerPrimary()" hidden></button>
+        <button class="ghost-btn" id="org-banner-close" onclick="dismissOrgBanner()">Закрыть</button>
+      </div>
+    </div>
+    <div class="mail-banner" id="mail-banner"><div><b>Подтвердите почту</b><p id="mail-banner-text"></p></div><button class="ghost-btn" id="mail-resend-btn" onclick="resendVerification()">Отправить письмо</button></div><div id="my-events-list" class="my-events-list"></div><div id="favorites-list" class="my-events-list" style="display:none"></div><div id="notifications-list" class="my-events-list" style="display:none"></div></div></div></section>
   </main>
   <nav class="shell nav-tabs" aria-label="Прототип экранов"><button class="nav-tab active" data-screen="home">Главная</button><button class="nav-tab" data-screen="catalog">Каталог</button><button class="nav-tab" data-screen="calendar">Календарь</button><button class="nav-tab" data-screen="detail">Карточка события</button><button class="nav-tab" data-screen="form">Добавление</button><button class="nav-tab" data-screen="moderation">Модерация</button><button class="nav-tab" data-screen="admin">Админка</button><button class="nav-tab" data-screen="auth">Кабинет</button></nav>
   <footer class="site-footer">
@@ -743,7 +779,7 @@
       if (name === 'calendar') loadCalendar();
       if (name === 'auth') { renderCabinet(); showCaptchaSlot('auth-captcha-field', true); }
       if (name === 'moderation') loadModerationQueue();
-      if (name === 'admin') loadAdminUsers();
+      if (name === 'admin') { loadAdminUsers(); loadAdminOrganizerApps(); }
     }
 
     tabs.forEach(t => t.addEventListener('click', () => {
@@ -1565,6 +1601,9 @@
         if (!response.ok) throw new Error(data.detail || 'Не удалось сохранить событие');
         resetCaptcha('event-captcha');
         toast((isEdit || isModEdit) ? 'Изменения сохранены' : `Событие отправлено на модерацию: ${data.title}`);
+        // Баннер «заявка одобрена» висит до первого события: как только оно
+        // создано, напоминание больше не нужно.
+        if (!isEdit && !isModEdit) dismissOrgBanner();
         showCaptchaSlot('event-captcha-field', false);
         editingEventId = null;
         modEditEventId = null;
@@ -1692,6 +1731,7 @@
       if (!canCreate && cabinetTab === 'my') cabinetTab = 'fav';
       setCabinetTab(cabinetTab || 'my');
       renderMailBanner();
+      renderOrgBanner();
     }
 
     // === Подтверждение почты ===
@@ -1735,6 +1775,7 @@
         localStorage.setItem(USER_KEY, JSON.stringify(profile));
         renderAuthState();
         renderMailBanner();
+        renderOrgBanner();
       } catch (e) { /* сеть недоступна — статус обновится при следующем визите */ }
     }
 
@@ -2527,6 +2568,199 @@
       }
     }
 
+    // === Заявка на организатора: баннер в кабинете ===
+    // Статус приходит в профиле (/auth/me), поэтому отдельного запроса на
+    // каждый экран не нужно и баннер не мигает при переходах.
+    function orgBannerKey(user, status) {
+      return `afisha_org_banner_${user.id}_${status}`;
+    }
+
+    function renderOrgBanner() {
+      const banner = document.getElementById('org-banner');
+      if (!banner) return;
+      const user = getStoredUser();
+      banner.classList.remove('show', 'ok', 'warn');
+      banner.hidden = true;
+      if (!user || user.role === 'admin') return;
+      const status = user.organizer_status || '';
+      let title = '', text = '', primary = '', kind = '';
+      if (user.role === 'organizer') {
+        // Зелёный баннер висит, пока не создано первое событие или человек его
+        // не закрыл: напоминание без срока превращается в мусор на экране.
+        if (status !== 'approved' || localStorage.getItem(orgBannerKey(user, 'approved'))) return;
+        kind = 'ok';
+        title = '🎉 Ваша заявка одобрена!';
+        text = 'Теперь вы можете размещать афиши — первое событие появится в каталоге после проверки модератором.';
+        primary = 'Разместить афишу';
+      } else if (status === 'pending') {
+        kind = 'warn';
+        title = 'Статус заявки: на проверке';
+        text = 'Администратор проверит данные и ответит на почту — обычно до двух рабочих дней.';
+      } else if (status === 'rejected') {
+        kind = 'warn';
+        title = 'Заявка отклонена';
+        text = (user.organizer_note ? `Причина: ${user.organizer_note}. ` : '')
+          + 'Исправьте данные и подайте заявку повторно — это можно сделать здесь же.';
+        primary = 'Подать заявку повторно';
+      } else {
+        title = 'Хотите размещать афиши?';
+        text = 'Подайте заявку на организатора: администратор проверит контакты и откроет доступ к размещению событий.';
+        primary = 'Стать организатором';
+      }
+      document.getElementById('org-banner-title').textContent = title;
+      document.getElementById('org-banner-text').textContent = text;
+      const primaryBtn = document.getElementById('org-banner-primary');
+      primaryBtn.textContent = primary;
+      primaryBtn.hidden = !primary;
+      if (kind) banner.classList.add(kind);
+      banner.hidden = false;
+      banner.classList.add('show');
+    }
+
+    function orgBannerPrimary() {
+      const user = getStoredUser();
+      if (!user) { showScreen('auth'); return; }
+      if (user.role === 'organizer') { handleAddEventClick(); return; }
+      openOrganizerForm();
+    }
+
+    function dismissOrgBanner() {
+      const user = getStoredUser();
+      if (!user) return;
+      localStorage.setItem(orgBannerKey(user, user.organizer_status || 'none'), '1');
+      renderOrgBanner();
+    }
+
+    // === Экран «Стать организатором»: та же расширенная форма, что при
+    // регистрации, только доступна из кабинета (ТЗ, п.5) ===
+    function openOrganizerForm() {
+      const user = getStoredUser();
+      if (!user) { showScreen('auth'); return; }
+      if (user.role === 'organizer' || user.role === 'admin') {
+        toast('Вы уже можете размещать афиши');
+        return;
+      }
+      const set = (id, value) => { document.getElementById(id).value = value || ''; };
+      set('og-fullname', user.full_name);
+      set('og-phone', user.phone);
+      set('og-city', user.city);
+      set('og-org', user.org_name);
+      set('og-inn', user.inn);
+      set('og-social', user.social_personal);
+      set('og-social-org', user.social_org);
+      document.getElementById('organizer-error').classList.remove('show');
+      showScreen('organizer');
+    }
+
+    async function submitOrganizerApplication(event) {
+      event.preventDefault();
+      const err = document.getElementById('organizer-error');
+      const fail = (msg) => { err.textContent = msg; err.classList.add('show'); };
+      err.classList.remove('show');
+      const val = (id) => document.getElementById(id).value.trim();
+      if (!val('og-fullname') || !val('og-phone') || !val('og-city')) {
+        fail('Заполните ФИО, телефон и город — без них заявку не проверить.');
+        return;
+      }
+      try {
+        const resp = await fetch(`${API_BASE}/me/organizer-application`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Auth-Token': `${getAccessToken()}`},
+          body: JSON.stringify({
+            full_name: val('og-fullname'),
+            phone: val('og-phone'),
+            city: val('og-city'),
+            org_name: val('og-org') || null,
+            inn: val('og-inn') || null,
+            social_personal: val('og-social') || null,
+            social_org: val('og-social-org') || null,
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          if (resp.status === 401) { showScreen('auth'); fail('Войдите, чтобы подать заявку.'); return; }
+          fail(apiErrorText(data, 'Не удалось отправить заявку'));
+          return;
+        }
+        await refreshProfile();
+        toast('Заявка отправлена — ответ придёт на почту');
+        showScreen('auth');
+      } catch (error) {
+        fail('Сеть недоступна. Попробуйте ещё раз.');
+      }
+    }
+
+    // === Админка: заявки организаторов на верификации ===
+    async function loadAdminOrganizerApps() {
+      const token = getAccessToken();
+      if (!token) return;
+      const list = document.getElementById('admin-org-apps');
+      try {
+        const resp = await fetch(`${API_BASE}/admin/organizer-applications`, {
+          headers: {'X-Auth-Token': `${token}`},
+        });
+        if (resp.status === 403) {
+          if (list) list.innerHTML = '<div class="my-events-empty">Недостаточно прав: нужна роль администратора.</div>';
+          return;
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить заявки');
+        renderAdminOrganizerApps(data.items || []);
+      } catch (error) {
+        if (list) list.innerHTML = '<div class="my-events-empty">Не удалось загрузить заявки.</div>';
+      }
+    }
+
+    function renderAdminOrganizerApps(items) {
+      const list = document.getElementById('admin-org-apps');
+      if (!list) return;
+      const counter = document.getElementById('org-apps-counter');
+      if (counter) counter.textContent = `${items.length} на проверке`;
+      if (!items.length) {
+        list.innerHTML = '<div class="my-events-empty">Заявок на проверке нет.</div>';
+        return;
+      }
+      list.innerHTML = items.map(a => `
+    <div class="org-app">
+      <div>
+        <div class="me-title">${escapeHtml(a.full_name)} <span style="color:var(--muted);font-weight:600">· ${escapeHtml(a.email || '')}</span></div>
+        <div class="me-meta">${escapeHtml(a.city || '')}${a.org_name ? ' · ' + escapeHtml(a.org_name) : ''}${a.inn ? ' · ИНН ' + escapeHtml(a.inn) : ''}</div>
+        <div class="me-meta">${escapeHtml(a.phone || '')}${a.social_personal ? ' · ' + escapeHtml(a.social_personal) : ''}${a.social_org ? ' · ' + escapeHtml(a.social_org) : ''}</div>
+        <div class="me-meta">Заявка от ${a.created_at ? new Date(a.created_at).toLocaleString('ru-RU') : '—'}${a.email_verified === false ? ' · почта не подтверждена' : ''}</div>
+      </div>
+      <div class="me-actions">
+        <button class="mini-btn primary" onclick="reviewOrganizerApplication(${a.id}, 'approve')">✅ Подтвердить</button>
+        <button class="mini-btn danger" onclick="reviewOrganizerApplication(${a.id}, 'reject')">❌ Отклонить</button>
+      </div>
+    </div>`).join('');
+    }
+
+    async function reviewOrganizerApplication(id, decision) {
+      const body = {decision};
+      if (decision === 'reject') {
+        const reason = prompt('Причина отказа (её увидит человек):');
+        if (reason === null) return;
+        if (!reason.trim()) { toast('Причина отказа обязательна'); return; }
+        body.reason = reason.trim();
+      } else if (!confirm('Подтвердить организатора? Роль изменится сразу, событий это не касается.')) {
+        return;
+      }
+      try {
+        const resp = await fetch(`${API_BASE}/admin/organizer-applications/${id}/review`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Auth-Token': `${getAccessToken()}`},
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(apiErrorText(data, 'Не удалось обработать заявку'));
+        toast(decision === 'approve' ? 'Организатор подтверждён' : 'Заявка отклонена');
+        await loadAdminOrganizerApps();
+        await loadAdminUsers();
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
     // ---- Яндекс SmartCaptcha: регистрация, вход, создание/правка события ----
     // Проверка включается на бэкенде парой ключей: без них /auth/captcha отвечает
     // enabled:false, внешний скрипт не грузится и формы работают как раньше.
@@ -2774,18 +3008,69 @@
       if (retry) retry.hidden = false;
     }
 
+    // Кто регистрируется: посетитель или организатор. Переключение меняет набор
+    // полей, а не открывает вторую страницу: вход один, роль определяется по
+    // аккаунту, а заявка организатора ждёт проверки администратором.
+    let authKind = 'visitor';
+
+    function setAuthKind(kind) {
+      authKind = kind === 'organizer' ? 'organizer' : 'visitor';
+      const org = authKind === 'organizer';
+      document.querySelectorAll('#auth-kind .auth-kind-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.kind === authKind);
+      });
+      document.getElementById('auth-org-fields').hidden = !org;
+      document.getElementById('auth-responsibility-field').hidden = !org;
+      document.getElementById('auth-fullname').required = org;
+      document.getElementById('auth-phone').required = org;
+      document.getElementById('auth-city').required = org;
+      document.getElementById('auth-submit').textContent = org ? 'Отправить заявку' : 'Создать аккаунт';
+      document.getElementById('auth-sub').textContent = org
+        ? 'Аккаунт создаётся сразу, а заявку на статус организатора проверит администратор — обычно до двух рабочих дней.'
+        : 'Логин, почта и пароль: этого хватит для лайков, закладок и напоминаний.';
+    }
+
+    document.querySelectorAll('#auth-kind .auth-kind-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setAuthKind(btn.dataset.kind));
+    });
+
     function switchAuthMode(mode) {
       const isRegister = mode === 'register';
       document.getElementById('auth-tab-login').classList.toggle('active', !isRegister);
       document.getElementById('auth-tab-register').classList.toggle('active', isRegister);
       document.getElementById('auth-title').textContent = isRegister ? 'Регистрация' : 'Вход';
-      document.getElementById('auth-sub').textContent = isRegister
-        ? 'Создайте аккаунт, чтобы позже получить роль организатора.'
-        : 'Введите почту и пароль, чтобы войти в кабинет организатора.';
-      document.getElementById('auth-name-field').style.display = isRegister ? 'grid' : 'none';
-      document.getElementById('auth-name').required = isRegister;
+      // Поля «только для регистрации»: логин, дата рождения, галочки согласий.
+      document.getElementById('auth-kind-field').hidden = !isRegister;
+      document.getElementById('auth-login-field').hidden = !isRegister;
+      document.getElementById('auth-birth-field').hidden = !isRegister;
+      document.getElementById('auth-consents').hidden = !isRegister;
+      const emailInput = document.getElementById('auth-email');
+      const emailLabel = document.getElementById('auth-email-label');
+      if (isRegister) {
+        emailInput.type = 'email';
+        emailInput.placeholder = 'you@example.com';
+        emailInput.setAttribute('autocomplete', 'email');
+        emailLabel.textContent = 'Email *';
+        document.getElementById('auth-login').required = true;
+        setAuthKind(authKind);
+      } else {
+        // На входе одно поле: можно набрать логин или почту. type=text, иначе
+        // браузер ругается на «неверный адрес» при вводе логина.
+        emailInput.type = 'text';
+        emailInput.placeholder = 'Логин или почта';
+        emailInput.setAttribute('autocomplete', 'username');
+        emailLabel.textContent = 'Логин или email';
+        document.getElementById('auth-login').required = false;
+        document.getElementById('auth-fullname').required = false;
+        document.getElementById('auth-phone').required = false;
+        document.getElementById('auth-city').required = false;
+        document.getElementById('auth-org-fields').hidden = true;
+        document.getElementById('auth-consents').hidden = true;
+        document.getElementById('auth-responsibility-field').hidden = true;
+        document.getElementById('auth-sub').textContent = 'Введите логин или почту и пароль.';
+        document.getElementById('auth-submit').textContent = 'Войти';
+      }
       showCaptchaSlot('auth-captcha-field', true);
-      document.getElementById('auth-submit').textContent = isRegister ? 'Создать аккаунт' : 'Войти';
       document.getElementById('auth-error').classList.remove('show');
       document.getElementById('auth-password').setAttribute('autocomplete', isRegister ? 'new-password' : 'current-password');
       // «Не помню пароль» относится ко входу: на регистрации сбрасывать нечего.
@@ -2899,12 +3184,38 @@
       const isRegister = document.getElementById('auth-tab-register').classList.contains('active');
       const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
-      const fullName = document.getElementById('auth-name').value.trim();
+      const login = document.getElementById('auth-login').value.trim().toLowerCase();
       document.getElementById('auth-error').classList.remove('show');
 
-      if (isRegister && password.length < 8) {
-        showAuthError('Пароль должен быть не короче 8 символов.');
-        return;
+      if (isRegister) {
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/.test(login)) {
+          showAuthError('Логин: 3–64 символа, буквы и цифры (можно точку, дефис, подчёркивание).');
+          return;
+        }
+        if (password.length < 8) {
+          showAuthError('Пароль должен быть не короче 8 символов.');
+          return;
+        }
+        if (!document.getElementById('auth-terms').checked) {
+          showAuthError('Примите условия Пользовательского соглашения.');
+          return;
+        }
+        if (!document.getElementById('auth-pdn').checked) {
+          showAuthError('Нужно согласие на обработку персональных данных.');
+          return;
+        }
+        if (authKind === 'organizer') {
+          if (!document.getElementById('auth-fullname').value.trim()
+              || !document.getElementById('auth-phone').value.trim()
+              || !document.getElementById('auth-city').value.trim()) {
+            showAuthError('Укажите ФИО, телефон и город — без них заявку не проверить.');
+            return;
+          }
+          if (!document.getElementById('auth-responsibility').checked) {
+            showAuthError('Отметьте ответственность за размещаемый контент.');
+            return;
+          }
+        }
       }
 
       // Капча стоит и на входе, и на регистрации; при выключенной проверке
@@ -2917,10 +3228,29 @@
 
       try {
         if (isRegister) {
+          const payload = {
+            email, password, login,
+            account_type: authKind,
+            ...(captchaFields || {}),
+          };
+          const birth = document.getElementById('auth-birth').value;
+          if (birth) payload.birth_date = birth;
+          if (authKind === 'organizer') {
+            const val = (id) => document.getElementById(id).value.trim();
+            Object.assign(payload, {
+              full_name: val('auth-fullname'),
+              phone: val('auth-phone'),
+              city: val('auth-city'),
+              org_name: val('auth-org') || null,
+              inn: val('auth-inn') || null,
+              social_personal: val('auth-social') || null,
+              social_org: val('auth-social-org') || null,
+            });
+          }
           const resp = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email, password, full_name: fullName, ...(captchaFields || {})}),
+            body: JSON.stringify(payload),
           });
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok) {
@@ -2949,13 +3279,19 @@
             showMailCheck({
               email,
               title: 'Проверьте почту',
-              sub: `Мы отправили ссылку на ${email}. Откройте её на любом устройстве — эта страница войдёт сама. Письма нет? Проверьте папку «Спам».`,
+              sub: `Мы отправили ссылку на ${email}.`
+                + (authKind === 'organizer'
+                    ? ' Заявка на организатора отправлена на проверку — ответ придёт на эту почту.'
+                    : '')
+                + ' Откройте ссылку на любом устройстве — эта страница войдёт сама. Письма нет? Проверьте папку «Спам».',
               cooldown: 60,
               pendingToken: data.pending_token || '',
             });
             return;
           }
-          toast('Аккаунт создан. Теперь войдите.');
+          toast(authKind === 'organizer'
+            ? 'Аккаунт создан, заявка на организатора отправлена. Теперь войдите.'
+            : 'Аккаунт создан. Теперь войдите.');
           switchAuthMode('login');
           return;
         }
@@ -2963,7 +3299,7 @@
         const resp = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({email, password, ...(captchaFields || {})}),
+          body: JSON.stringify({login: email, password, ...(captchaFields || {})}),
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
@@ -2981,7 +3317,7 @@
             });
             return;
           }
-          throw new Error(apiErrorText(data, 'Неверный email или пароль'));
+          throw new Error(apiErrorText(data, 'Неверный логин или пароль'));
         }
 
         setSession(data.access_token, data.refresh_token, null);
