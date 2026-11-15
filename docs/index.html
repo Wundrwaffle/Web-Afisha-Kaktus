@@ -255,11 +255,29 @@
     .month .month-short { display: none; }
     /* Homepage calendar strip: fixed calendar grid, day-events panel doesn't affect layout */
     .calendar-layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; flex: 1; min-height: 0; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 3px; text-align: center; font-size: 11px; height: 100%; }
-    .calendar-grid span { padding: 5px 2px; border-radius: 6px; color: var(--muted); }
-    .calendar-grid .weekday { font-weight: 800; color: var(--ink); font-size: 9px; text-transform: uppercase; padding: 4px 2px; }
-    .calendar-grid .has-event { background: var(--soft-blue); color: var(--accent-dark); font-weight: 800; }
-    .calendar-grid .today { background: var(--accent); color: #fff; font-weight: 800; }
+    /* Календарь месяца: компактная сетка фиксированного шага. В ячейке только
+       число и точки-маркеры событий — подпись «2 события» ломала высоту строк и
+       растягивала день на две строки. Шаг задан aspect-ratio, поэтому высота
+       месяца не зависит от количества событий в нём. */
+    .calendar-screen { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+    /* В узкой колонке подписи «Предыдущий/Следующий» не влезают — остаются
+       стрелки, как в мобильной версии, а месяц не переносится на две строки. */
+    .calendar-screen .month { margin-bottom: 10px; gap: 8px; }
+    .calendar-screen .month-nav-word { display: none; }
+    .calendar-screen .month h2 { font-size: 17px; white-space: nowrap; margin: 0; }
+    .calendar-screen .day-events-panel { margin: 0; }
+    .day-events-hint { color: var(--muted); }
+    .day-events-hint h3 { margin-bottom: 6px; }
+    .day-events-hint p { margin: 0; font-size: 13px; line-height: 1.5; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font: 700 13px/1 Montserrat; }
+    .calendar-grid span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; aspect-ratio: 1 / 1; padding: 0; border-radius: 8px; color: var(--muted); }
+    .calendar-grid span[data-date] { cursor: pointer; }
+    .calendar-grid .weekday { aspect-ratio: auto; padding: 0 0 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--ink); }
+    .calendar-grid .has-event { background: var(--soft-blue); color: var(--accent-dark); }
+    .calendar-grid .today { background: var(--accent); color: #fff; }
+    .calendar-grid .selected { box-shadow: 0 0 0 2px var(--accent-dark) inset; }
+    .calendar-grid .dots { display: flex; flex-direction: row; gap: 3px; height: 5px; }
+    .calendar-grid .dots i { display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
     .calendar-grid .empty { visibility: hidden; }
     .mini-list { display: grid; gap: 12px; }
     .mini-item { display: flex; gap: 12px; align-items: start; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
@@ -528,7 +546,7 @@
       .hero-search { grid-template-columns: 1fr 1fr; }
       .hero-search label:first-child { grid-column: 1/-1; }
       .events-grid { grid-template-columns: repeat(2, 1fr); }
-      .calendar-strip, .detail-layout, .form-layout { grid-template-columns: 1fr; }
+      .calendar-strip, .calendar-screen, .detail-layout, .form-layout { grid-template-columns: 1fr; }
       .moderation-layout { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
@@ -667,7 +685,7 @@
       </div>
     </div><div class="section-head"><h2>48 событий</h2></div><div class="events-grid"></div></div></section>
 
-    <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn month-nav" id="prev-month" style="padding:7px 10px" aria-label="Предыдущий месяц"><span class="month-nav-arrow" aria-hidden="true">←</span><span class="month-nav-word">Предыдущий</span></button><h2 id="calendar-month"><span class="month-full">Август 2026</span><span class="month-short">авг.</span></h2><button class="ghost-btn month-nav" id="next-month" style="padding:7px 10px" aria-label="Следующий месяц"><span class="month-nav-word">Следующий</span><span class="month-nav-arrow" aria-hidden="true">→</span></button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel day-events-panel"></div></div></div></section>
+    <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="calendar-screen"><div class="panel"><div class="month"><button class="ghost-btn month-nav" id="prev-month" style="padding:7px 10px" aria-label="Предыдущий месяц"><span class="month-nav-arrow" aria-hidden="true">←</span><span class="month-nav-word">Предыдущий</span></button><h2 id="calendar-month"><span class="month-full">Август 2026</span><span class="month-short">авг.</span></h2><button class="ghost-btn month-nav" id="next-month" style="padding:7px 10px" aria-label="Следующий месяц"><span class="month-nav-word">Следующий</span><span class="month-nav-arrow" aria-hidden="true">→</span></button></div><div class="calendar-grid" id="calendar-grid"></div></div><div class="calendar-side"><div class="panel day-events-hint" id="calendar-day-hint"><h3>Выберите дату</h3><p>Нажмите на день в календаре — покажем события этого дня.</p></div><div id="calendar-day-events" class="panel day-events-panel"></div></div></div></div></section>
 
     <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="openAuthChoice('Чтобы пожаловаться на событие, войдите в аккаунт — жалобу рассматривает администратор.')">Пожаловаться</button></div></div></div></section>
 
@@ -1270,7 +1288,13 @@
           if (hasEvents) classes.push('has-event');
           const classStr = classes.length ? ` class="${classes.join(' ')}"` : '';
 
-          html += `<span${classStr} data-date="${dateStr}" style="cursor:pointer">${day}${hasEvents ? `<br><small>${dayEvents.length} ${dayEvents.length === 1 ? 'событие' : 'события'}</small>` : ''}</span>`;
+          // Точки вместо подписи «2 события»: текст не влезал в ячейку и ломал
+          // высоту строк. Слово «событие» осталось только в подсказке при наведении.
+          const dots = hasEvents
+            ? `<span class="dots">${'<i></i>'.repeat(Math.min(dayEvents.length, 3))}</span>`
+            : '';
+          const hint = hasEvents ? ` title="${day} — ${pluralEvents(dayEvents.length)}"` : '';
+          html += `<span${classStr} data-date="${dateStr}"${hint}>${day}${dots}</span>`;
           day++;
         }
       }
@@ -1284,7 +1308,21 @@
     }
 
     function showDayEvents(dateStr, events) {
+      // Выбранный день — контуром, подсказку «Выберите дату» убираем
+      document.querySelectorAll('#calendar-grid span[data-date]').forEach(cell => {
+        cell.classList.toggle('selected', cell.dataset.date === dateStr);
+      });
+      const hintPanel = document.getElementById('calendar-day-hint');
+      if (hintPanel) hintPanel.style.display = 'none';
       renderDayEventsPanel(document.getElementById('calendar-day-events'), events);
+    }
+
+    // Возврат к исходному состоянию панели дня (при смене месяца)
+    function resetDayPanel() {
+      document.getElementById('calendar-day-events').classList.remove('is-open');
+      const hintPanel = document.getElementById('calendar-day-hint');
+      if (hintPanel) hintPanel.style.display = '';
+      document.querySelectorAll('#calendar-grid span.selected').forEach(cell => cell.classList.remove('selected'));
     }
 
     let calendarStartDate = '2026-08-01';
@@ -1293,13 +1331,13 @@
     document.getElementById('prev-month')?.addEventListener('click', () => {
       currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
       loadCalendar();
-      document.getElementById('calendar-day-events').classList.remove('is-open');
+      resetDayPanel();
     });
 
     document.getElementById('next-month')?.addEventListener('click', () => {
       currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
       loadCalendar();
-      document.getElementById('calendar-day-events').classList.remove('is-open');
+      resetDayPanel();
     });
 
     async function showEvent(slug) {
