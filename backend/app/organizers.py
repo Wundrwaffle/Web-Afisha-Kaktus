@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import OrganizerApplication, User, utcnow
-from .notifications import admin_ids, notify_new_organizer_application, staff_ids
+from .notifications import notify_new_organizer_application, staff_ids
 
 STATUS_PENDING = "pending"
 STATUS_APPROVED = "approved"
@@ -224,17 +224,22 @@ def build_organizer_routes(
         session.commit()
         session.refresh(application)
         # Заявка должна «прийти» тем, кто её проверяет: иначе она просто лежит
-        # в разделе верификации, и админ узнаёт о ней только случайно.
+        # в разделе верификации, и модератор узнаёт о ней только случайно.
         notify_new_organizer_application(
             session, notify, full_name=application.full_name, city=application.city
         )
         return serialize_application(application)
 
-    @router.get("/admin/organizer-applications")
+    # Заявки проверяет модератор: это модерация доступа, а не управление
+    # платформой. Админ по-прежнему может — но штатный путь идёт через модерку,
+    # поэтому канонический префикс /moderation/, а /admin/ оставлен синонимом
+    # ради уже существующих клиентов.
+    @router.get("/moderation/organizer-applications")
+    @router.get("/admin/organizer-applications", deprecated=True)
     def list_applications(
         status: str = STATUS_PENDING,
         session: Session = Depends(get_session),
-        _: User = Depends(require_role("admin")),
+        _: User = Depends(require_role("moderator", "admin")),
     ) -> dict[str, object]:
         if status not in STATUSES and status != "all":
             raise HTTPException(status_code=422, detail="Unknown application status")
@@ -265,9 +270,9 @@ def build_organizer_routes(
         }
 
     def _remind_stale(session: Session, applications) -> None:
-        """Напоминание админам о заявках, висящих дольше двух рабочих дней.
+        """Напоминание команде о заявках, висящих дольше двух рабочих дней.
 
-        Одно на заявку (stale_notified_at): иначе каждый заход в админку
+        Одно на заявку (stale_notified_at): иначе каждый заход в модерку
         добавлял бы новое уведомление и колокольчик стал бы бесполезен.
         """
         if notify is None:
@@ -298,12 +303,15 @@ def build_organizer_routes(
             application.stale_notified_at = now
         session.commit()
 
-    @router.post("/admin/organizer-applications/{application_id}/review")
+    @router.post("/moderation/organizer-applications/{application_id}/review")
+    @router.post(
+        "/admin/organizer-applications/{application_id}/review", deprecated=True
+    )
     def review_application(
         application_id: int,
         payload: ReviewIn,
         session: Session = Depends(get_session),
-        current_user: User = Depends(require_role("admin")),
+        current_user: User = Depends(require_role("moderator", "admin")),
     ) -> dict[str, object]:
         application = session.get(OrganizerApplication, application_id)
         if application is None:

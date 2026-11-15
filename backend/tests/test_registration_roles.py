@@ -364,11 +364,11 @@ def _kinds(client, token):
     return [note["kind"] for note in notes]
 
 
-def test_organizer_registration_notifies_only_admins(tmp_path):
-    """Заявка с регистрации должна «прийти» админу, а не лежать молча.
+def test_organizer_registration_notifies_moderators(tmp_path):
+    """Заявка с регистрации должна «прийти» тем, кто её разбирает.
 
-    Модератору — нет: раздел верификации открыт только админу, и уведомление
-    вело бы его в «нет доступа».
+    Разбирает модератор — он и должен получить уведомление. Админ получает
+    копию: доступ на платформу его тоже касается.
     """
     db_path = tmp_path / "notify-new.sqlite3"
     with TestClient(create_app(f"sqlite:///{db_path}")) as client:
@@ -377,8 +377,8 @@ def test_organizer_registration_notifies_only_admins(tmp_path):
 
         assert _register(client, ORGANIZER).status_code == 201
 
+        assert "organizer_application" in _kinds(client, moderateur)
         assert "organizer_application" in _kinds(client, admin)
-        assert "organizer_application" not in _kinds(client, moderateur)
 
 
 def test_visitor_registration_does_not_notify_admins(tmp_path):
@@ -389,10 +389,11 @@ def test_visitor_registration_does_not_notify_admins(tmp_path):
         assert "organizer_application" not in _kinds(client, admin)
 
 
-def test_cabinet_application_notifies_admins(tmp_path):
+def test_cabinet_application_notifies_staff(tmp_path):
     db_path = tmp_path / "notify-cabinet.sqlite3"
     with TestClient(create_app(f"sqlite:///{db_path}")) as client:
         admin = _staff_token(client, db_path, "boss@example.com", "boss")
+        moderateur = _staff_token(client, db_path, "mod@example.com", "moder", "moderator")
         _register(client, VISITOR)
         _verify(db_path, VISITOR["email"])
         visitor = _login(client, "vasya").json()["access_token"]
@@ -402,4 +403,55 @@ def test_cabinet_application_notifies_admins(tmp_path):
             headers=_auth(visitor),
         )
         assert applied.status_code == 201, applied.text
+        assert "organizer_application" in _kinds(client, moderateur)
         assert "organizer_application" in _kinds(client, admin)
+
+
+# --- Кто разбирает заявки --------------------------------------------------
+
+
+def test_moderator_reviews_organizer_applications(tmp_path):
+    """Заявки на организатора — работа модератора, а не админа.
+
+    Модератор открывает список и выносит решение: одобрение сразу меняет роль.
+    Старый админский путь остаётся синонимом, чтобы не ломать уже написанный
+    код и закладки, но штатный — /moderation/.
+    """
+    db_path = tmp_path / "mod-review.sqlite3"
+    with TestClient(create_app(f"sqlite:///{db_path}")) as client:
+        _register(client, VISITOR)
+        _verify(db_path, VISITOR["email"])
+        visitor = _login(client, "vasya").json()["access_token"]
+        assert (
+            client.post(
+                "/api/v1/me/organizer-application",
+                json={
+                    "full_name": "Петров Пётр",
+                    "phone": "+79001234433",
+                    "city": "Новокузнецк",
+                },
+                headers=_auth(visitor),
+            ).status_code
+            == 201
+        )
+        moderateur = _staff_token(
+            client, db_path, "mod@example.com", "moder", "moderator"
+        )
+
+        listed = client.get(
+            "/api/v1/moderation/organizer-applications", headers=_auth(moderateur)
+        )
+        assert listed.status_code == 200, listed.text
+        application_id = listed.json()["items"][0]["id"]
+
+        approved = client.post(
+            f"/api/v1/moderation/organizer-applications/{application_id}/review",
+            json={"decision": "approve"},
+            headers=_auth(moderateur),
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "approved"
+
+        me = client.get("/api/v1/auth/me", headers=_auth(visitor)).json()
+        assert me["role"] == "organizer"
+        assert me["organizer_status"] == "approved"
