@@ -249,6 +249,10 @@
     .panel h3 { font-size: 18px; margin-bottom: 15px; }
     .month { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0; }
     .month strong { font: 700 17px Montserrat; }
+    /* Переключатель месяца: подпись и стрелка разными узлами, чтобы на телефоне
+       спрятать слово и оставить только стрелку (см. @media 640px). */
+    .month .month-nav { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .month .month-short { display: none; }
     /* Homepage calendar strip: fixed calendar grid, day-events panel doesn't affect layout */
     .calendar-layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; flex: 1; min-height: 0; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 3px; text-align: center; font-size: 11px; height: 100%; }
@@ -542,6 +546,16 @@
       .cabinet-actions .ghost-btn { flex: 0 0 auto; width: 44px; min-height: 44px; padding: 0; }
       .mail-banner { align-items: stretch; }
       .mail-banner .ghost-btn { width: 100%; }
+      /* Календарь: «← Предыдущий» + «Сентябрь 2026» + «Следующий →» в строку
+         влезают только с ~600px, поэтому уже с 640px остаются стрелки и
+         сокращённый месяц («сен.»); год renderCalendarGrid() дописывает лишь
+         когда он не текущий. Порог 640 (а не 560) — запас 40px на длинные
+         названия месяцев. */
+      .month .month-nav { min-width: 44px; min-height: 40px; padding: 0 12px; }
+      .month .month-nav-word { display: none; }
+      .month .month-full { display: none; }
+      .month .month-short { display: inline; }
+      .month #calendar-month { font-size: 16px; white-space: nowrap; }
     }
     @media (max-width: 560px) {
       .shell { width: min(100% - 24px, 1240px); }
@@ -653,7 +667,7 @@
       </div>
     </div><div class="section-head"><h2>48 событий</h2></div><div class="events-grid"></div></div></section>
 
-    <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn" id="prev-month" style="padding:7px 10px">← Предыдущий</button><h2 id="calendar-month">Август 2026</h2><button class="ghost-btn" id="next-month" style="padding:7px 10px">Следующий →</button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel day-events-panel"></div></div></div></section>
+    <section id="calendar" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Календарь</div><h1>Все планы на месяц</h1><p>Выберите дату, чтобы увидеть события этого дня.</p></div><div class="chips"><button class="chip active">Все</button><button class="chip">Музыка</button><button class="chip">Культура</button></div></div><div class="panel"><div class="month"><button class="ghost-btn month-nav" id="prev-month" style="padding:7px 10px" aria-label="Предыдущий месяц"><span class="month-nav-arrow" aria-hidden="true">←</span><span class="month-nav-word">Предыдущий</span></button><h2 id="calendar-month"><span class="month-full">Август 2026</span><span class="month-short">авг.</span></h2><button class="ghost-btn month-nav" id="next-month" style="padding:7px 10px" aria-label="Следующий месяц"><span class="month-nav-word">Следующий</span><span class="month-nav-arrow" aria-hidden="true">→</span></button></div><div class="calendar-grid" id="calendar-grid" style="font-size:14px;gap:8px"></div><div id="calendar-day-events" class="panel day-events-panel"></div></div></div></section>
 
     <section id="detail" class="screen"><div class="shell"><button class="ghost-btn" onclick="showScreen('home')">← Назад к афише</button><div class="detail-layout" style="margin-top:24px"><div><div class="detail-poster"></div><div class="section-head"><h2>О событии</h2><button class="ghost-btn" onclick="toast('Ссылка скопирована')">Поделиться</button></div><p class="description">Большой летний фестиваль музыки, локальных проектов и городских историй. В программе — сцена под открытым небом, маркеты, зона отдыха и встречи с авторами.</p></div><div class="detail-info"><div class="eyebrow" id="detail-category">Музыка · Бесплатно</div><h1 id="detail-title">Город звучит</h1><div class="info-row"><b>Когда</b><span id="detail-date">22 июня, суббота<br>18:00 — 23:00</span></div><div class="info-row"><b>Где</b><span id="detail-venue">Парк Гагарина<br>Новокузнецк</span></div><div class="info-row"><b>Возраст</b><span id="detail-age">18+</span></div><div class="info-row"><b>Организатор</b><span id="detail-organizer">Команда «Город звучит»</span></div><button class="primary-btn" id="detail-fav-btn" style="width:100%;margin-top:24px" onclick="toggleDetailFavorite()">♡ Добавить в избранное</button><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="openAuthChoice('Чтобы пожаловаться на событие, войдите в аккаунт — жалобу рассматривает администратор.')">Пожаловаться</button></div></div></div></section>
 
@@ -1205,7 +1219,18 @@
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      document.getElementById('calendar-month').textContent = range.monthName.charAt(0).toUpperCase() + range.monthName.slice(1);
+      // Подпись месяца: полная для десктопа и сокращённая для телефона — обе
+      // лежат в разметке, видимость переключает @media (max-width: 640px).
+      // Год в коротком варианте только когда он не текущий, иначе «янв.» на
+      // переходе через декабрь теряет контекст.
+      const monthLong = currentCalendarDate.toLocaleString('ru-RU', { month: 'long' });
+      const monthFull = `${monthLong.charAt(0).toUpperCase()}${monthLong.slice(1)} ${currentCalendarDate.getFullYear()}`;
+      const monthShortBase = currentCalendarDate.toLocaleString('ru-RU', { month: 'short' });
+      const monthShort = currentCalendarDate.getFullYear() === today.getFullYear()
+        ? monthShortBase
+        : `${monthShortBase} ${currentCalendarDate.getFullYear()}`;
+      document.getElementById('calendar-month').innerHTML =
+        `<span class="month-full">${monthFull}</span><span class="month-short">${monthShort}</span>`;
 
       let html = '';
       // Дни недели
