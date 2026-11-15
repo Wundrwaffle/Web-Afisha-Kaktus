@@ -123,6 +123,10 @@
       --shadow-tab: 0 2px 6px rgba(0,0,0,.45);
     }
     * { box-sizing: border-box; }
+    /* Атрибут hidden важнее авторского display: у .field стоит display:grid, и без
+       этого правила «скрытые» поля (дата рождения, выбор роли, галочки) продолжали
+       висеть на экране входа. Одно правило вместо display:none в каждом классе. */
+    [hidden] { display: none !important; }
     html { scrollbar-gutter: stable; }
     body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Open Sans', sans-serif; }
     button, input, select, textarea { font: inherit; }
@@ -2648,7 +2652,9 @@
       const user = getStoredUser();
       banner.classList.remove('show', 'ok', 'warn');
       banner.hidden = true;
-      if (!user || user.role === 'admin') return;
+      // Служебным ролям плашку не показываем: администратору и модератору
+      // предлагать «стать организатором» нечего — доступ у них уже есть.
+      if (!user || user.role === 'admin' || user.role === 'moderator') return;
       const status = user.organizer_status || '';
       let title = '', text = '', primary = '', kind = '';
       if (user.role === 'organizer') {
@@ -3087,6 +3093,9 @@
         btn.classList.toggle('active', btn.dataset.kind === authKind);
       });
       document.getElementById('auth-org-fields').hidden = !org;
+      // Дата рождения остаётся только в форме организатора: посетителю она не
+      // нужна ни для чего (правки по регистрации от 15.11).
+      document.getElementById('auth-birth-field').hidden = !org;
       document.getElementById('auth-responsibility-field').hidden = !org;
       document.getElementById('auth-fullname').required = org;
       document.getElementById('auth-phone').required = org;
