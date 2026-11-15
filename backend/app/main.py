@@ -352,6 +352,7 @@ def create_app(
         captcha_verifier=captcha_verifier,
         mailer=mailer,
         require_verified_email=require_verified_email,
+        notify=notify,
     )
     app.include_router(auth["router"])
     get_current_user = auth["get_current_user"]

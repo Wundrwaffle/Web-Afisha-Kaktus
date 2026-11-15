@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import OrganizerApplication, User, utcnow
-from .notifications import staff_ids
+from .notifications import admin_ids, notify_new_organizer_application, staff_ids
 
 STATUS_PENDING = "pending"
 STATUS_APPROVED = "approved"
@@ -223,6 +223,11 @@ def build_organizer_routes(
             current_user.full_name = fields["full_name"]
         session.commit()
         session.refresh(application)
+        # Заявка должна «прийти» тем, кто её проверяет: иначе она просто лежит
+        # в разделе верификации, и админ узнаёт о ней только случайно.
+        notify_new_organizer_application(
+            session, notify, full_name=application.full_name, city=application.city
+        )
         return serialize_application(application)
 
     @router.get("/admin/organizer-applications")

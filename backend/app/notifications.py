@@ -24,6 +24,42 @@ def staff_ids(session: Session) -> list[int]:
     )
 
 
+def admin_ids(session: Session) -> list[int]:
+    """id администраторов — тех, кто проверяет заявки организаторов.
+
+    Модераторы в этот список не входят: раздел «Организаторы → На верификации»
+    открыт только админу, и уведомление, ведущее в «нет доступа», только путает.
+    """
+    return list(session.scalars(select(User.id).where(User.role == "admin")).all())
+
+
+def notify_new_organizer_application(
+    session: Session,
+    notify,
+    *,
+    full_name: str,
+    city: str | None,
+) -> None:
+    """Служебное уведомление админам о свежей заявке на организатора.
+
+    Без него заявка молча лежит в админке: ни письма, ни строки в «Уведомлениях»
+    не появлялось, и проверить её можно было только по своей памяти.
+    """
+    if notify is None:
+        return
+    where = f" ({city})" if city else ""
+    notify(
+        session,
+        admin_ids(session),
+        kind="organizer_application",
+        title="Новая заявка на организатора",
+        text=(
+            f"{full_name}{where} подал заявку на статус организатора. "
+            "Проверьте данные в разделе «Организаторы → На верификации»."
+        ),
+    )
+
+
 def notify_users(
     session: Session,
     user_ids: list[int] | set[int],

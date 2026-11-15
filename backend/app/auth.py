@@ -23,6 +23,7 @@ from .captcha import (
 from .db import session_dependency
 from .exposure import LoginRateLimiter, SlidingWindowLimiter, client_ip
 from .models import Identity, OrganizerApplication, RefreshToken, User, utcnow
+from .notifications import notify_new_organizer_application
 from .security import (
     create_access_token,
     create_pending_token,
@@ -287,6 +288,7 @@ def build_auth_routes(
     captcha_verifier: CaptchaVerifier | None = None,
     mailer: Mailer | None = None,
     require_verified_email: bool = False,
+    notify=None,
 ):
     """Собирает auth-эндпоинты с привязкой к session_factory из create_app.
 
@@ -615,6 +617,12 @@ def build_auth_routes(
             )
             session.add(application)
             session.commit()
+            session.refresh(application)
+            # Заявка появляется в админке — админ должен узнать о ней сразу,
+            # письмом и строкой в «Уведомлениях», а не наткнуться случайно.
+            notify_new_organizer_application(
+                session, notify, full_name=application.full_name, city=application.city
+            )
             organizer_status = "pending"
         if register_limiter is not None:
             register_limiter.hit(client_ip(request))

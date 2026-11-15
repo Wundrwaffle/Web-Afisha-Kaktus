@@ -347,3 +347,59 @@ def test_organizer_cannot_apply_twice(tmp_path):
             headers=_auth(token),
         )
         assert resp.status_code == 409
+
+
+# --- Входящие уведомления о заявках ---------------------------------------
+
+
+def _staff_token(client, db_path, email, login, role="admin"):
+    """Заводит служебный аккаунт нужной роли и возвращает его токен."""
+    _register(client, {"email": email, "password": PASSWORD, "login": login})
+    _promote(db_path, email, role)
+    return _login(client, login).json()["access_token"]
+
+
+def _kinds(client, token):
+    notes = client.get("/api/v1/me/notifications", headers=_auth(token)).json()["items"]
+    return [note["kind"] for note in notes]
+
+
+def test_organizer_registration_notifies_only_admins(tmp_path):
+    """Заявка с регистрации должна «прийти» админу, а не лежать молча.
+
+    Модератору — нет: раздел верификации открыт только админу, и уведомление
+    вело бы его в «нет доступа».
+    """
+    db_path = tmp_path / "notify-new.sqlite3"
+    with TestClient(create_app(f"sqlite:///{db_path}")) as client:
+        admin = _staff_token(client, db_path, "boss@example.com", "boss")
+        moderateur = _staff_token(client, db_path, "mod@example.com", "moder", "moderator")
+
+        assert _register(client, ORGANIZER).status_code == 201
+
+        assert "organizer_application" in _kinds(client, admin)
+        assert "organizer_application" not in _kinds(client, moderateur)
+
+
+def test_visitor_registration_does_not_notify_admins(tmp_path):
+    db_path = tmp_path / "notify-visitor.sqlite3"
+    with TestClient(create_app(f"sqlite:///{db_path}")) as client:
+        admin = _staff_token(client, db_path, "boss@example.com", "boss")
+        assert _register(client, VISITOR).status_code == 201
+        assert "organizer_application" not in _kinds(client, admin)
+
+
+def test_cabinet_application_notifies_admins(tmp_path):
+    db_path = tmp_path / "notify-cabinet.sqlite3"
+    with TestClient(create_app(f"sqlite:///{db_path}")) as client:
+        admin = _staff_token(client, db_path, "boss@example.com", "boss")
+        _register(client, VISITOR)
+        _verify(db_path, VISITOR["email"])
+        visitor = _login(client, "vasya").json()["access_token"]
+        applied = client.post(
+            "/api/v1/me/organizer-application",
+            json={"full_name": "Петров Пётр", "phone": "+79001234433", "city": "Новокузнецк"},
+            headers=_auth(visitor),
+        )
+        assert applied.status_code == 201, applied.text
+        assert "organizer_application" in _kinds(client, admin)
