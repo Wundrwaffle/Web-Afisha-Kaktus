@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import OrganizerApplication, User, utcnow
+from .audit import log_action
 from .notifications import notify_new_organizer_application, staff_ids
 
 STATUS_PENDING = "pending"
@@ -334,6 +335,15 @@ def build_organizer_routes(
                 value = getattr(application, name)
                 if value:
                     setattr(user, name, value)
+            log_action(
+                session,
+                current_user,
+                "organizer_approved",
+                entity_type="organizer_application",
+                entity_id=application.id,
+                title=application.full_name,
+                details=f"{user.email}: роль visitor → organizer",
+            )
             session.commit()
             if notify is not None:
                 # ТЗ п.6: письмо + уведомление в кабинет. Баннер «заявка
@@ -351,6 +361,15 @@ def build_organizer_routes(
         else:
             application.status = STATUS_REJECTED
             application.note = reason
+            log_action(
+                session,
+                current_user,
+                "organizer_rejected",
+                entity_type="organizer_application",
+                entity_id=application.id,
+                title=application.full_name,
+                details=reason,
+            )
             session.commit()
             if notify is not None:
                 notify(

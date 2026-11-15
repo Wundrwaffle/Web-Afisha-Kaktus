@@ -10,8 +10,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from .audit import log_action, serialize_log
 from .db import Base, build_engine, build_session_factory, session_dependency
-from .models import Event, Favorite, Notification, User
+from .models import Event, Favorite, ModerationLog, Notification, User
 from .auth import build_auth_routes
 from .captcha import (
     CAPTCHA_FAILED_MESSAGE,
@@ -757,7 +758,7 @@ def create_app(
         event_id: int,
         payload: ReviewRequest,
         session: Session = Depends(get_session),
-        _: User = Depends(require_role("moderator", "admin")),
+        actor: User = Depends(require_role("moderator", "admin")),
     ) -> dict[str, object]:
         event = session.get(Event, event_id)
         if event is None:
@@ -773,6 +774,15 @@ def create_app(
             event.moderation_note = (payload.reason or "").strip()
         else:
             event.moderation_note = None
+        log_action(
+            session,
+            actor,
+            "event_approved" if payload.decision == "approve" else "event_rejected",
+            entity_type="event",
+            entity_id=event.id,
+            title=event.title,
+            details=(payload.reason or "").strip() or None,
+        )
         session.commit()
         session.refresh(event)
         if payload.decision == "reject":
@@ -825,14 +835,32 @@ def create_app(
         event_id: int,
         payload: EventUpdate,
         session: Session = Depends(get_session),
-        _: User = Depends(require_role("moderator", "admin")),
+        actor: User = Depends(require_role("moderator", "admin")),
     ) -> dict[str, object]:
         event = session.get(Event, event_id)
         if event is None:
             raise HTTPException(status_code=404, detail="Event not found")
         changes = payload.model_dump(exclude_unset=True)
-        for field, value in changes.items():
-            setattr(event, field, value)
+        if changes:
+            # Пишем в журнал только реально изменённые поля: «правка» без списка
+            # полей бесполезна для разбора спора с организатором.
+            applied = {
+                field: value
+                for field, value in changes.items()
+                if getattr(event, field, None) != value
+            }
+            for field, value in changes.items():
+                setattr(event, field, value)
+            if applied:
+                log_action(
+                    session,
+                    actor,
+                    "event_updated",
+                    entity_type="event",
+                    entity_id=event.id,
+                    title=event.title,
+                    details="Изменены поля: " + ", ".join(sorted(applied)),
+                )
         session.commit()
         session.refresh(event)
         return serialize_event(event)
@@ -841,11 +869,22 @@ def create_app(
     def moderator_delete_event(
         event_id: int,
         session: Session = Depends(get_session),
-        _: User = Depends(require_role("moderator", "admin")),
+        actor: User = Depends(require_role("moderator", "admin")),
     ) -> None:
         event = session.get(Event, event_id)
         if event is None:
             raise HTTPException(status_code=404, detail="Event not found")
+        # Заголовок снимаем до удаления: после commit строки уже нет, а журнал
+        # должен остаться читаемым («удалено событие «X»»).
+        log_action(
+            session,
+            actor,
+            "event_deleted",
+            entity_type="event",
+            entity_id=event.id,
+            title=event.title,
+            details=f"Статус на момент удаления: {event.status}",
+        )
         # Чистим избранное, чтобы не остались битые ссылки.
         session.execute(delete(Favorite).where(Favorite.event_id == event_id))
         session.delete(event)
@@ -856,7 +895,7 @@ def create_app(
         event_id: int,
         payload: UnpublishRequest,
         session: Session = Depends(get_session),
-        _: User = Depends(require_role("moderator", "admin")),
+        actor: User = Depends(require_role("moderator", "admin")),
     ) -> dict[str, object]:
         event = session.get(Event, event_id)
         if event is None:
@@ -868,6 +907,15 @@ def create_app(
         # Снятие с публикации: возвращаем организатору как черновик с причиной.
         event.status = "draft"
         event.moderation_note = payload.reason.strip()
+        log_action(
+            session,
+            actor,
+            "event_unpublished",
+            entity_type="event",
+            entity_id=event.id,
+            title=event.title,
+            details=payload.reason.strip(),
+        )
         session.commit()
         session.refresh(event)
         notify(
@@ -924,10 +972,53 @@ def create_app(
         target = session.get(User, user_id)
         if target is None:
             raise HTTPException(status_code=404, detail="User not found")
+        if target.role != payload.role:
+            log_action(
+                session,
+                current_user,
+                "role_changed",
+                entity_type="user",
+                entity_id=target.id,
+                title=target.email,
+                details=f"роль {target.role} → {payload.role}",
+            )
         target.role = payload.role
         session.commit()
         session.refresh(target)
         return serialize_admin_user(target)
+
+    # --- Журнал модерации ---
+    @app.get("/api/v1/moderation/log")
+    def moderation_log(
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0),
+        action: str | None = Query(default=None),
+        session: Session = Depends(get_session),
+        _: User = Depends(require_role("moderator", "admin")),
+    ) -> dict[str, object]:
+        """Кто что сделал: новые сверху.
+
+        Фильтр по действию — чтобы разобрать узкий вопрос («кто снимал с
+        публикации»), не листая весь журнал.
+        """
+        conditions = []
+        if action:
+            conditions.append(ModerationLog.action == action)
+        total = session.scalar(
+            select(func.count()).select_from(ModerationLog).where(*conditions)
+        )
+        statement = (
+            select(ModerationLog)
+            .where(*conditions)
+            .order_by(ModerationLog.created_at.desc(), ModerationLog.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        entries = session.scalars(statement).all()
+        return {
+            "items": [serialize_log(entry) for entry in entries],
+            "total": int(total or 0),
+        }
 
     # --- Уведомления в личный кабинет ---
     def serialize_notification(

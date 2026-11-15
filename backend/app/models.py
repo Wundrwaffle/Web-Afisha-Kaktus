@@ -240,3 +240,35 @@ class Notification(Base):
     )
     email_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     email_error: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+class ModerationLog(Base):
+    """Журнал действий модерации: кто, что, с чем и когда.
+
+    Отдельная таблица, а не поля у событий: строка должна пережить удаление
+    события (модератор удалил — вопрос «кто и зачем» остаётся). Поэтому у
+    сущности хранится снимок заголовка, а не только внешний ключ.
+
+    actor_email/actor_role — тоже снимок: роль человека могут понизить, а в
+    журнале должно остаться, кем он был на момент действия.
+    """
+
+    __tablename__ = "moderation_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow, index=True
+    )
+    actor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
+    actor_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    actor_role: Mapped[str] = mapped_column(String(16), nullable=False)
+    # event_approved | event_rejected | event_updated | event_deleted |
+    # event_unpublished | organizer_approved | organizer_rejected |
+    # role_changed
+    action: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    # Снимок названия на момент действия: «Событие «X»» / «Заявка Иванова».
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    details: Mapped[str | None] = mapped_column(String(1000), nullable=True)

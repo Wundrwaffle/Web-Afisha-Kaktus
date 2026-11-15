@@ -659,7 +659,7 @@
 
     <section id="form" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Кабинет организатора</div><h1 id="form-title">Добавить событие</h1><p id="form-sub">После отправки событие попадёт на проверку модератору.</p></div></div><div class="form-layout"><div class="form-card"><h2>Основная информация</h2><div class="form-grid"><div class="field full"><label>Название события *</label><input id="f-title" placeholder="Например, «Город звучит»"></div><div class="field"><label>Категория *</label><select id="f-category"></select></div><div class="field"><label>Стоимость *</label><input id="f-price" placeholder="Бесплатно или от 350 ₽"></div><div class="field"><label>Дата *</label><input id="f-date" type="date"></div><div class="field"><label>Время начала *</label><input id="f-time" type="time"></div><div class="field full"><label>Место *</label><input id="f-venue" placeholder="Парк Гагарина"></div></div><div class="field full captcha-slot" id="event-captcha-field" data-captcha="event-captcha" hidden><label>Проверка</label><div id="event-captcha"></div></div><div class="form-actions"><button class="ghost-btn" onclick="cancelEventForm()">Отмена</button><button class="primary-btn" onclick="submitEventFromForm()" id="f-submit">Отправить на проверку</button></div></div><aside class="side-note"><h3>Что будет дальше</h3><p>Модератор проверит информацию и опубликует событие. Обычно это занимает до одного рабочего дня.</p><div class="checklist"><div class="check"><i>✓</i><span>Событие попадёт на модерацию</span></div><div class="check"><i>✓</i><span>После одобрения появится в каталоге</span></div><div class="check"><i>✓</i><span>Вы сможете редактировать и снимать событие</span></div><div class="check"><i>✓</i><span>Не более 20 предстоящих событий у организатора</span></div></div></aside></div></div></section>
 
-    <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Админ-панель</div><h1>Модерация</h1><p>Проверяйте новые события, заявки организаторов и управляйте опубликованными.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px" id="mod-tabs"><button class="chip active" data-mod-status="pending_moderation">На проверке</button><button class="chip" data-mod-status="published">Опубликованные</button><button class="chip" data-mod-status="rejected">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div><div class="section-head" style="margin-top:26px"><h2>Заявки организаторов</h2><span class="status pending" id="org-apps-counter">0 на проверке</span></div><div class="my-events-list" id="org-apps-list"><div class="my-events-empty">Загружаем заявки…</div></div></div></section>
+    <section id="moderation" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Команда</div><h1>Модерация</h1><p>Проверяйте новые события, заявки организаторов и управляйте опубликованными.</p></div><span class="status pending" id="mod-counter">0 на проверке</span></div><div class="moderation-layout"><div><div class="chips" style="margin-bottom:12px" id="mod-tabs"><button class="chip active" data-mod-status="pending_moderation">На проверке</button><button class="chip" data-mod-status="published">Опубликованные</button><button class="chip" data-mod-status="rejected">Отклонённые</button></div><div class="queue" id="mod-queue-list"></div></div><div class="moderation-main" id="mod-detail"></div></div><div class="section-head" style="margin-top:26px"><h2>Заявки организаторов</h2><span class="status pending" id="org-apps-counter">0 на проверке</span></div><div class="my-events-list" id="org-apps-list"><div class="my-events-empty">Загружаем заявки…</div></div><div class="section-head" style="margin-top:26px"><h2>История действий</h2><span class="status" id="mod-log-counter">—</span></div><div class="my-events-list" id="mod-log-list"><div class="my-events-empty">Загружаем журнал…</div></div></div></section>
 
     <section id="organizer" class="screen"><div class="shell"><div class="intro"><div><div class="eyebrow">Стать организатором</div><h1>Разместить афишу</h1><p id="organizer-sub">Заполните данные — заявку проверит модератор, обычно до двух рабочих дней. Ответ придёт на почту.</p></div></div><div class="auth-layout"><div class="auth-card"><div class="auth-error" id="organizer-error"></div><form id="organizer-form" onsubmit="submitOrganizerApplication(event)"><div class="field"><label>ФИО полностью *</label><input id="og-fullname" placeholder="Иванов Иван Иванович" autocomplete="name" required></div><div class="field"><label>Телефон *</label><input id="og-phone" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel" required></div><div class="field"><label>Город *</label><input id="og-city" placeholder="Новокузнецк" required></div><div class="field"><label>Организация / ИП</label><input id="og-org" placeholder="Если есть"></div><div class="field"><label>ИНН</label><input id="og-inn" placeholder="Если есть" inputmode="numeric"></div><div class="field"><label>Личная соцсеть (VK/MAX)</label><input id="og-social" placeholder="https://vk.com/…"></div><div class="field"><label>Соцсеть организации</label><input id="og-social-org" placeholder="https://vk.com/…"></div><button class="primary-btn" type="submit">Отправить заявку</button></form><button class="ghost-btn" style="width:100%;margin-top:10px" onclick="showScreen('auth')">Вернуться в кабинет</button></div></div></div></section>
 
@@ -804,7 +804,7 @@
       if (name === 'catalog') applyCatalogFilters();
       if (name === 'calendar') loadCalendar();
       if (name === 'auth') { renderCabinet(); showCaptchaSlot('auth-captcha-field', true); }
-      if (name === 'moderation') { loadModerationQueue(); loadOrganizerApps(); }
+      if (name === 'moderation') { loadModerationQueue(); loadOrganizerApps(); loadModerationLog(); }
       if (name === 'admin') loadAdminUsers();
     }
 
@@ -2439,6 +2439,9 @@
         moderationEvents = data.items;
         if (selectedModId && !moderationEvents.some(e => e.event_id === selectedModId)) selectedModId = null;
         renderModQueue();
+        // Одобрение, отказ и снятие с публикации меняют журнал, а вызывающий
+        // код обновляет только очередь — журнал тянем здесь, чтобы не забывать.
+        loadModerationLog();
       } catch (error) {
         toast(error.message);
       }
@@ -2822,7 +2825,7 @@
         <div class="me-title">${escapeHtml(a.full_name)} <span style="color:var(--muted);font-weight:600">· ${escapeHtml(a.email || '')}</span></div>
         <div class="me-meta">${escapeHtml(a.city || '')}${a.org_name ? ' · ' + escapeHtml(a.org_name) : ''}${a.inn ? ' · ИНН ' + escapeHtml(a.inn) : ''}</div>
         <div class="me-meta">${escapeHtml(a.phone || '')}${a.social_personal ? ' · ' + escapeHtml(a.social_personal) : ''}${a.social_org ? ' · ' + escapeHtml(a.social_org) : ''}</div>
-        <div class="me-meta">Заявка от ${a.created_at ? new Date(a.created_at).toLocaleString('ru-RU') : '—'}${a.email_verified === false ? ' · почта не подтверждена' : ''}</div>
+        <div class="me-meta">Заявка от ${formatUtcStamp(a.created_at)}${a.email_verified === false ? ' · почта не подтверждена' : ''}</div>
       </div>
       <div class="me-actions">
         <button class="mini-btn primary" onclick="reviewOrganizerApplication(${a.id}, 'approve')">✅ Подтвердить</button>
@@ -2851,9 +2854,94 @@
         if (!resp.ok) throw new Error(apiErrorText(data, 'Не удалось обработать заявку'));
         toast(decision === 'approve' ? 'Организатор подтверждён' : 'Заявка отклонена');
         await loadOrganizerApps();
+        await loadModerationLog();
       } catch (error) {
         toast(error.message);
       }
+    }
+
+    // === Журнал модерации ===
+    // Одна строка — одно действие: кто, когда, что и почему. Коды действий
+    // приходят с бэкенда, человеческие подписи живут здесь: текст в API
+    // пришлось бы локализовать на сервере ради одной строки.
+    const MOD_ACTION_LABELS = {
+      event_approved: '✅ Одобрил событие',
+      event_rejected: '❌ Отклонил событие',
+      event_updated: '✏️ Отредактировал событие',
+      event_deleted: '🗑 Удалил событие',
+      event_unpublished: '⏸ Снял с публикации',
+      organizer_approved: '✅ Подтвердил организатора',
+      organizer_rejected: '❌ Отклонил заявку организатора',
+      role_changed: '🔑 Сменил роль',
+    };
+
+    // Время в базе — UTC без метки. Без «Z» браузер прочитает его как местное
+    // и покажет сдвиг на часовой пояс, поэтому метку ставим руками.
+    function formatUtcStamp(iso) {
+      if (!iso) return '—';
+      const parsed = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`);
+      return isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString('ru-RU');
+    }
+
+    // «1 записей» выглядит как ошибка, а не как счётчик — склоняем по числу.
+    function pluralRecords(count) {
+      const tens = count % 100;
+      const ones = count % 10;
+      let word = 'записей';
+      if (tens < 11 || tens > 14) {
+        if (ones === 1) word = 'запись';
+        else if (ones >= 2 && ones <= 4) word = 'записи';
+      }
+      return `${count} ${word}`;
+    }
+
+    async function loadModerationLog() {
+      const screen = document.getElementById('moderation');
+      // Журнал тянем только когда раздел открыт: те же действия, что меняют
+      // очередь, меняют и его, но впустую дёргать API из других экранов незачем.
+      if (screen && !screen.classList.contains('active')) return;
+      const token = getAccessToken();
+      const list = document.getElementById('mod-log-list');
+      if (!token || !list) return;
+      try {
+        const resp = await fetch(`${API_BASE}/moderation/log?limit=50`, {
+          headers: {'X-Auth-Token': `${token}`},
+        });
+        if (resp.status === 403) {
+          list.innerHTML = '<div class="my-events-empty">Недостаточно прав: нужна роль модератора.</div>';
+          return;
+        }
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.detail || 'Не удалось загрузить журнал');
+        renderModerationLog(data.items || [], data.total);
+      } catch (error) {
+        list.innerHTML = '<div class="my-events-empty">Не удалось загрузить журнал.</div>';
+      }
+    }
+
+    function renderModerationLog(items, total) {
+      const list = document.getElementById('mod-log-list');
+      if (!list) return;
+      const counter = document.getElementById('mod-log-counter');
+      if (counter) counter.textContent = pluralRecords(total || items.length);
+      if (!items.length) {
+        list.innerHTML = '<div class="my-events-empty">Действий пока нет.</div>';
+        return;
+      }
+      list.innerHTML = items.map(entry => {
+        const label = MOD_ACTION_LABELS[entry.action] || escapeHtml(entry.action);
+        const title = entry.title ? ` <span style="color:var(--muted);font-weight:600">· ${escapeHtml(entry.title)}</span>` : '';
+        const details = entry.details
+          ? `<div class="me-meta">${escapeHtml(entry.details)}</div>` : '';
+        return `
+    <div class="org-app">
+      <div>
+        <div class="me-title">${label}${title}</div>
+        <div class="me-meta">${formatUtcStamp(entry.created_at)} · ${escapeHtml(entry.actor_email || '')} <span style="color:var(--muted)">(${escapeHtml(entry.actor_role || '')})</span></div>
+        ${details}
+      </div>
+    </div>`;
+      }).join('');
     }
 
     // ---- Яндекс SmartCaptcha: регистрация, вход, создание/правка события ----
