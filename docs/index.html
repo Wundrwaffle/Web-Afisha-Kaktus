@@ -1017,10 +1017,11 @@
     // Отдельная загрузка для ленты дат на главной (независимо от фильтров каталога)
     async function loadHomeCalendarStrip() {
       const today = new Date();
-      const start = today.toISOString().split('T')[0];
+      // localISO, а не toISOString: в UTC+7 он отдаёт вчерашнюю дату до 07:00
+      const start = localISO(today);
       const endD = new Date(today);
       endD.setMonth(endD.getMonth() + 2);
-      const end = endD.toISOString().split('T')[0];
+      const end = localISO(endD);
       try {
         const response = await fetch(`${API_BASE}/events/calendar?start_date=${start}&end_date=${end}`);
         if (response.ok) {
@@ -1192,14 +1193,20 @@
 
     let currentCalendarDate = new Date(2026, 7, 1); // Август 2026 (0-based month)
 
+    // Локальная дата в ISO-виде: toISOString() переводит в UTC, и в UTC+7
+    // полночь 1 июля превращается в 30 июня — запрос уходил на день раньше.
+    function localISO(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function getMonthRange(date) {
       const year = date.getFullYear();
       const month = date.getMonth();
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       return {
-        start: firstDay.toISOString().split('T')[0],
-        end: lastDay.toISOString().split('T')[0],
+        start: localISO(firstDay),
+        end: localISO(lastDay),
         firstWeekday: (firstDay.getDay() + 6) % 7, // Пн=0, Вс=6
         daysInMonth: lastDay.getDate(),
         monthName: firstDay.toLocaleString('ru-RU', {month: 'long', year: 'numeric'}),
@@ -1238,17 +1245,17 @@
         html += `<span class="weekday">${d}</span>`;
       });
 
-      // Всегда рендерим 6 недель × 7 дней = 42 ячейки дней + 7 заголовков = 49 ячеек (фиксированная структура)
-      const totalCells = 49;
+      // Ячеек ровно столько, сколько нужно месяцу: обычно 5 недель, иногда 6.
+      // Цикл идёт только по дням (заголовки уже отрисованы выше) — иначе первые
+      // семь итераций попадали в ветку «день» и месяц съезжал влево на
+      // firstWeekday (1 июля оказывалось под Пн вместо Ср).
+      const cells = Math.ceil((range.firstWeekday + range.daysInMonth) / 7) * 7;
       let day = 1;
 
-      for (let cell = 0; cell < totalCells; cell++) {
-        const isWeekdayHeader = cell < 7;
-        const dayCellIndex = cell - 7; // 0-41 для дней
-        const isBeforeMonth = !isWeekdayHeader && dayCellIndex < range.firstWeekday;
-        const isAfterMonth = !isWeekdayHeader && day > range.daysInMonth;
+      for (let cell = 0; cell < cells; cell++) {
+        const isEmpty = cell < range.firstWeekday || day > range.daysInMonth;
 
-        if (isBeforeMonth || isAfterMonth) {
+        if (isEmpty) {
           // Пустые ячейки до/после месяца
           html += `<span class="empty"></span>`;
         } else {
