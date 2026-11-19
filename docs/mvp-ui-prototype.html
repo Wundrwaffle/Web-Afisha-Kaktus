@@ -4,9 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>чтоунастамзавтра — MVP UI Prototype</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Шрифты локальные (docs/fonts/), без внешних запросов: сменить — в docs/fonts/fonts.css -->
+  <link rel="stylesheet" href="fonts/fonts.css">
   <style>
     :root {
       --bg: #f8f9fa;
@@ -23,10 +22,10 @@
       --radius: 18px;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Open Sans', sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
-    h1, h2, h3, h4 { font-family: 'Montserrat', sans-serif; margin: 0; letter-spacing: -.025em; }
+    h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; letter-spacing: -.025em; }
     .shell { width: min(1240px, calc(100% - 40px)); margin: 0 auto; }
     .topbar { height: 76px; display: flex; align-items: center; gap: 28px; border-bottom: 1px solid var(--line); background: rgba(248,249,250,.94); position: sticky; top: 0; z-index: 5; backdrop-filter: blur(14px); }
     .brand { display: flex; align-items: center; gap: 10px; min-width: 265px; color: var(--ink); text-decoration: none; }
@@ -34,8 +33,8 @@
     .brand-mark:before, .brand-mark:after { content: ''; position: absolute; border-radius: 50%; background: var(--accent); }
     .brand-mark:before { width: 26px; height: 26px; right: -7px; top: -7px; }
     .brand-mark:after { width: 13px; height: 13px; left: 7px; bottom: 7px; background: #fff; }
-    .brand span { font-family: Montserrat; font-weight: 800; font-size: 16px; line-height: 1.02; }
-    .brand small { display: block; color: var(--muted); font: 600 10px 'Open Sans'; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+    .brand span { font-family: var(--font-heading); font-weight: 800; font-size: 16px; line-height: 1.02; }
+    .brand small { display: block; color: var(--muted); font: 600 10px var(--font-body); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
     .top-search { flex: 1; position: relative; }
     .top-search input { width: 100%; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 12px 16px 12px 42px; outline: none; color: var(--ink); }
     .top-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,255,.13); }
@@ -73,7 +72,7 @@
     .poster-2 { background: linear-gradient(135deg, #192c63, #7f9ed8 52%, #dfedf9); }
     .poster-3 { background: linear-gradient(135deg, #226c69, #c1e0b8 50%, #f3d26a); }
     .poster-4 { background: linear-gradient(135deg, #262038, #a35b99 50%, #f1b3bd); }
-    .poster-title { position: relative; z-index: 1; font: 800 22px/1.02 Montserrat; max-width: 190px; }
+    .poster-title { position: relative; z-index: 1; font: 800 22px/1.02 var(--font-heading); max-width: 190px; }
     .date-pill { position: absolute; z-index: 2; top: 13px; left: 13px; background: #fff; color: var(--ink); border-radius: 9px; padding: 7px 9px; font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; }
     .heart { position: absolute; z-index: 2; top: 12px; right: 12px; border: 0; background: rgba(255,255,255,.9); color: var(--ink); width: 34px; height: 34px; border-radius: 50%; font-size: 17px; }
     .card-body { padding: 15px; }
@@ -85,7 +84,7 @@
     .panel { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
     .panel h3 { font-size: 18px; margin-bottom: 15px; }
     .month { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .month strong { font: 700 17px Montserrat; }
+    .month strong { font: 700 17px var(--font-heading); }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 12px; }
     .calendar-grid span { padding: 8px 4px; border-radius: 8px; color: var(--muted); }
     .calendar-grid .weekday { font-weight: 800; color: var(--ink); font-size: 10px; text-transform: uppercase; }
@@ -93,12 +92,12 @@
     .calendar-grid .today { background: var(--accent); color: #fff; font-weight: 800; }
     .mini-list { display: grid; gap: 12px; }
     .mini-item { display: flex; gap: 12px; align-items: start; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-    .mini-date { min-width: 44px; color: var(--accent-dark); font: 800 12px Montserrat; }
-    .mini-item strong { display: block; font: 700 14px Montserrat; margin-bottom: 4px; }
+    .mini-date { min-width: 44px; color: var(--accent-dark); font: 800 12px var(--font-heading); }
+    .mini-item strong { display: block; font: 700 14px var(--font-heading); margin-bottom: 4px; }
     .mini-item span { color: var(--muted); font-size: 12px; }
     .detail-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 28px; }
     .detail-poster { height: 450px; border-radius: 24px; background: linear-gradient(135deg, #cb4d38, #f4bb5c 46%, #0b1a33); position: relative; overflow: hidden; display: flex; align-items: end; padding: 32px; color: #fff; }
-    .detail-poster:after { content: 'ЛЕТНИЙ ФЕСТИВАЛЬ'; position: relative; z-index: 1; font: 800 clamp(34px, 6vw, 76px)/.9 Montserrat; max-width: 600px; }
+    .detail-poster:after { content: 'ЛЕТНИЙ ФЕСТИВАЛЬ'; position: relative; z-index: 1; font: 800 clamp(34px, 6vw, 76px)/.9 var(--font-heading); max-width: 600px; }
     .detail-info { padding-top: 12px; }
     .detail-info h1 { font-size: clamp(30px, 4vw, 48px); line-height: 1.03; margin-bottom: 18px; }
     .info-row { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -126,7 +125,7 @@
     .queue { display: grid; gap: 8px; }
     .queue-item { border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 13px; text-align: left; }
     .queue-item.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,255,.11); }
-    .queue-item strong { display: block; font: 700 13px Montserrat; margin-bottom: 5px; }
+    .queue-item strong { display: block; font: 700 13px var(--font-heading); margin-bottom: 5px; }
     .queue-item span { color: var(--muted); font-size: 12px; }
     .status { display: inline-flex; border-radius: 99px; padding: 5px 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
     .status.pending { color: var(--amber); background: #fff5d9; }

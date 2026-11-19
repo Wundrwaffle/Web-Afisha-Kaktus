@@ -21,9 +21,8 @@
   <link rel="icon" href="/brand/brand-mark.svg" type="image/svg+xml">
   <link rel="icon" href="/brand/brand-mark-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="/brand/brand-mark-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Шрифты локальные (docs/fonts/), без внешних запросов: сменить — в docs/fonts/fonts.css -->
+  <link rel="stylesheet" href="fonts/fonts.css">
   <style>
     /* Палитра собрана в токены: светлая тема — значения по умолчанию,
        тёмная — переопределение ниже (html[data-theme="dark"]).
@@ -128,10 +127,10 @@
        висеть на экране входа. Одно правило вместо display:none в каждом классе. */
     [hidden] { display: none !important; }
     html { scrollbar-gutter: stable; }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Open Sans', sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
-    h1, h2, h3, h4 { font-family: 'Montserrat', sans-serif; margin: 0; letter-spacing: -.025em; }
+    h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; letter-spacing: -.025em; }
     .shell { width: min(1240px, calc(100% - 40px)); margin: 0 auto; }
     .topbar { border-bottom: 1px solid var(--line); background: var(--topbar-bg); position: sticky; top: 0; z-index: 5; backdrop-filter: blur(14px); }
     .topbar-inner { display: flex; align-items: center; gap: 22px; min-height: 76px; }
@@ -140,8 +139,8 @@
     .brand-mark:before, .brand-mark:after { content: ''; position: absolute; border-radius: 50%; background: var(--accent); }
     .brand-mark:before { width: 26px; height: 26px; right: -7px; top: -7px; }
     .brand-mark:after { width: 13px; height: 13px; left: 7px; bottom: 7px; background: #fff; }
-    .brand span { font-family: Montserrat; font-weight: 800; font-size: 16px; line-height: 1.02; white-space: nowrap; }
-    .brand small { display: block; color: var(--muted); font: 600 10px 'Open Sans'; letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+    .brand span { font-family: var(--font-heading); font-weight: 800; font-size: 16px; line-height: 1.02; white-space: nowrap; }
+    .brand small { display: block; color: var(--muted); font: 600 10px var(--font-body); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
     .top-search { flex: 1 1 240px; min-width: 168px; position: relative; }
     .top-search input { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 16px 12px 42px; outline: none; color: var(--ink); text-overflow: ellipsis; }
     .top-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,255,.13); }
@@ -228,7 +227,7 @@
     .poster-2 { background: linear-gradient(135deg, #192c63, #7f9ed8 52%, #dfedf9); }
     .poster-3 { background: linear-gradient(135deg, #226c69, #c1e0b8 50%, #f3d26a); }
     .poster-4 { background: linear-gradient(135deg, #262038, #a35b99 50%, #f1b3bd); }
-    .poster-title { position: relative; z-index: 1; font: 800 22px/1.02 Montserrat; max-width: 190px; }
+    .poster-title { position: relative; z-index: 1; font: 800 22px/1.02 var(--font-heading); max-width: 190px; }
     .date-pill { position: absolute; z-index: 2; top: 13px; left: 13px; background: var(--pill-bg); color: var(--pill-ink); border-radius: 9px; padding: 7px 9px; font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; }
     .heart { position: absolute; z-index: 2; top: 12px; right: 12px; border: 0; background: rgba(255,255,255,.9); color: var(--pill-ink); width: 34px; height: 34px; border-radius: 50%; font-size: 17px; }
     .heart.fav { background: var(--fav); color: #fff; }
@@ -248,7 +247,7 @@
     .calendar-strip .panel { height: 360px; } /* фиксированная высота панели календаря */
     .panel h3 { font-size: 18px; margin-bottom: 15px; }
     .month { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0; }
-    .month strong { font: 700 17px Montserrat; }
+    .month strong { font: 700 17px var(--font-heading); }
     /* Переключатель месяца: подпись и стрелка разными узлами, чтобы на телефоне
        спрятать слово и оставить только стрелку (см. @media 640px). */
     .month .month-nav { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -269,7 +268,7 @@
     .day-events-hint { color: var(--muted); }
     .day-events-hint h3 { margin-bottom: 6px; }
     .day-events-hint p { margin: 0; font-size: 13px; line-height: 1.5; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font: 700 13px/1 Montserrat; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font: 700 13px/1 var(--font-heading); }
     .calendar-grid span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; aspect-ratio: 1 / 1; padding: 0; border-radius: 8px; color: var(--muted); }
     .calendar-grid span[data-date] { cursor: pointer; }
     .calendar-grid .weekday { aspect-ratio: auto; padding: 0 0 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--ink); }
@@ -286,21 +285,21 @@
     .ribbon-wrap .date-ribbon { flex: 1; min-width: 0; }
     .date-ribbon { display: flex; align-items: stretch; gap: 5px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; scroll-behavior: smooth; }
     .date-ribbon::-webkit-scrollbar { display: none; }
-    .date-chip { min-width: 54px; flex: 0 0 auto; padding: 8px 4px 20px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); text-align: center; cursor: pointer; font: 800 16px/1 Montserrat; color: var(--ink); transition: border-color .15s, background .15s; position: relative; }
+    .date-chip { min-width: 54px; flex: 0 0 auto; padding: 8px 4px 20px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); text-align: center; cursor: pointer; font: 800 16px/1 var(--font-heading); color: var(--ink); transition: border-color .15s, background .15s; position: relative; }
     .date-chip small { display: block; margin-top: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: .04em; }
     .date-chip:hover { border-color: var(--accent); background: var(--soft-blue); }
     .date-chip.today { background: var(--accent); border-color: var(--accent); color: #fff; }
     .date-chip.today small { color: rgba(255,255,255,.85); }
     .date-chip.selected { box-shadow: 0 0 0 2px var(--accent-dark) inset; border-color: var(--accent-dark); }
     .date-chip.in-range:not(.selected) { background: var(--surface-2); border-color: var(--line); }
-    .date-chip .cnt { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font: 800 10px Montserrat; font-style: normal; color: var(--accent-dark); line-height: 1; }
+    .date-chip .cnt { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font: 800 10px var(--font-heading); font-style: normal; color: var(--accent-dark); line-height: 1; }
     .date-chip.today .cnt { color: #fff; }
-    .ribbon-month { flex: 0 0 auto; display: flex; align-items: center; font: 800 11px Montserrat; text-transform: uppercase; color: var(--muted); letter-spacing: .06em; padding: 0 6px; }
+    .ribbon-month { flex: 0 0 auto; display: flex; align-items: center; font: 800 11px var(--font-heading); text-transform: uppercase; color: var(--muted); letter-spacing: .06em; padding: 0 6px; }
 
-    .mini-date { min-width: 44px; color: var(--accent-dark); font: 800 12px Montserrat; }
+    .mini-date { min-width: 44px; color: var(--accent-dark); font: 800 12px var(--font-heading); }
     .day-group-title { margin: 16px 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
     .panel h3 + .mini-list, .panel h4.day-group-title + .mini-list { margin-top: 0; }
-    .mini-item strong { display: block; font: 700 14px Montserrat; margin-bottom: 4px; }
+    .mini-item strong { display: block; font: 700 14px var(--font-heading); margin-bottom: 4px; }
     .mini-item span { color: var(--muted); font-size: 12px; }
     /* Панель событий дня/периода. Отступы — не «на глаз»: сверху нужно больше
        ленточного ритма (.ribbon-wrap отдаёт 18px), иначе карточка дня читается
@@ -310,7 +309,7 @@
     .day-events-panel.is-open { display: flex; }
     .detail-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 28px; }
     .detail-poster { height: 450px; border-radius: 24px; background: linear-gradient(135deg, #cb4d38, #f4bb5c 46%, #0b1a33); position: relative; overflow: hidden; display: flex; align-items: end; padding: 32px; color: #fff; }
-    .detail-poster:after { content: attr(data-title); position: relative; z-index: 1; font: 800 clamp(34px, 6vw, 76px)/.9 Montserrat; max-width: 600px; }
+    .detail-poster:after { content: attr(data-title); position: relative; z-index: 1; font: 800 clamp(34px, 6vw, 76px)/.9 var(--font-heading); max-width: 600px; }
     .detail-info { padding-top: 12px; }
     .detail-info h1 { font-size: clamp(30px, 4vw, 48px); line-height: 1.03; margin-bottom: 18px; }
     .info-row { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -338,7 +337,7 @@
     .queue { display: grid; gap: 8px; }
     .queue-item { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 13px; text-align: left; }
     .queue-item.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,153,255,.11); }
-    .queue-item strong { display: block; font: 700 13px Montserrat; margin-bottom: 5px; }
+    .queue-item strong { display: block; font: 700 13px var(--font-heading); margin-bottom: 5px; }
     .queue-item span { color: var(--muted); font-size: 12px; }
     .status { display: inline-flex; border-radius: 99px; padding: 5px 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
     .status.pending { color: var(--amber); background: var(--warn-bg); }
@@ -363,14 +362,14 @@
     .site-footer { margin-top: 32px; border-top: 1px solid var(--line); background: var(--surface-soft); }
     .footer-inner { padding: 28px 0 22px; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
     .footer-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; }
-    .footer-brand { font: 800 14px Montserrat; color: var(--ink); letter-spacing: -.01em; }
-    .footer-brand small { display: block; margin-top: 4px; font: 600 10px 'Open Sans'; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .footer-brand { font: 800 14px var(--font-heading); color: var(--ink); letter-spacing: -.01em; }
+    .footer-brand small { display: block; margin-top: 4px; font: 600 10px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
     .footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 0; padding: 0; list-style: none; }
     .footer-links a, .footer-cols a, .footer-cookie a { color: var(--accent-dark); font-weight: 700; text-decoration: none; }
     .footer-links a:hover, .footer-cols a:hover, .footer-cookie a:hover { text-decoration: underline; }
     .footer-notes { margin: 14px 0 0; max-width: 1040px; font-size: 11.5px; line-height: 1.65; }
     .footer-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px 26px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
-    .footer-cols h4 { margin: 0 0 7px; font: 800 10px 'Open Sans'; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .footer-cols h4 { margin: 0 0 7px; font: 800 10px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
     .footer-cols p { margin: 0; }
     .footer-cookie { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11.5px; }
     .cookie-banner { position: fixed; z-index: 18; left: 20px; right: 20px; bottom: 20px; max-width: 660px; display: flex; align-items: center; gap: 16px; padding: 15px 18px; border-radius: 14px; border: 1px solid transparent; background-color: var(--deep); background-image: linear-gradient(var(--deep), var(--deep)), var(--hero-ring); background-origin: padding-box, border-box; background-clip: padding-box, border-box; box-shadow: var(--shadow); color: var(--on-deep); }
@@ -427,7 +426,7 @@
     .oauth-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
     .oauth-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     /* Метка провайдера — фирменный цвет сервиса, он не зависит от темы. */
-    .oauth-mark { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: #fc3f1d; color: #fff; font: 800 15px/1 Montserrat, sans-serif; }
+    .oauth-mark { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: #fc3f1d; color: #fff; font: 800 15px/1 var(--font-heading), sans-serif; }
     /* Разделитель «или»: главный путь — кнопка провайдера, но почта с паролем
        остаются равноправным вариантом, а не спрятанной ссылкой. */
     .oauth-sep { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--muted); font-size: 12px; }
