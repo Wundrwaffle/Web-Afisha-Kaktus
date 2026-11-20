@@ -94,6 +94,10 @@ def serialize_application(
         if application.birth_date
         else None,
         "note": application.note,
+        "responsibility_accepted": bool(application.responsibility_accepted),
+        "responsibility_accepted_at": application.responsibility_accepted_at.isoformat()
+        if application.responsibility_accepted_at
+        else None,
         "created_at": application.created_at.isoformat()
         if application.created_at
         else None,
@@ -140,6 +144,9 @@ def build_organizer_routes(
         social_personal: str | None = Field(default=None, max_length=300)
         social_org: str | None = Field(default=None, max_length=300)
         birth_date: date | None = None
+        # Галочка «несу ответственность за размещаемый контент». Обязательна:
+        # без неё заявка не создаётся (см. валидацию в submit_application).
+        accept_responsibility: bool = False
 
     class ReviewIn(BaseModel):
         decision: Literal["approve", "reject"]
@@ -203,6 +210,19 @@ def build_organizer_routes(
                 },
             )
         fields = _fields(payload)
+        if not payload.accept_responsibility:
+            # Согласие — не формальность: организатор публикует события от своего
+            # имени, и модератор должен видеть, что человек это подтвердил.
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "responsibility_required",
+                    "message": (
+                        "Отметьте, что вы несёте ответственность за размещаемый "
+                        "контент и ознакомились с Пользовательским соглашением."
+                    ),
+                },
+            )
         application = OrganizerApplication(
             user_id=current_user.id,
             status=STATUS_PENDING,
@@ -214,6 +234,8 @@ def build_organizer_routes(
             social_personal=fields["social_personal"],
             social_org=fields["social_org"],
             birth_date=fields["birth_date"],
+            responsibility_accepted=True,
+            responsibility_accepted_at=utcnow(),
         )
         session.add(application)
         # Профиль тоже обновляем: данные не должны жить только внутри заявки,

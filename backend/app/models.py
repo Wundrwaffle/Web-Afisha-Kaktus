@@ -117,6 +117,16 @@ class OrganizerApplication(Base):
     social_personal: Mapped[str | None] = mapped_column(String(300), nullable=True)
     social_org: Mapped[str | None] = mapped_column(String(300), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Галочка «несу ответственность за размещаемый контент»: без неё заявка не
+    # принимается. Флаг и время фиксируются на заявке, а не на пользователе —
+    # согласие относится к конкретной подаче, и при повторной оно спрашивается
+    # заново (старые заявки остаются с 0: их подавали до появления галочки).
+    responsibility_accepted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    responsibility_accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
     # Причина отказа — её видит организатор в кабинете и в письме.
     note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -32,6 +32,7 @@ ORGANIZER = {
     "full_name": "Иванов Иван Иванович",
     "phone": "+79001234567",
     "city": "Новокузнецк",
+    "accept_responsibility": True,
     "org_name": "ИП Иванов",
     "inn": "422100000001",
     "social_personal": "https://vk.com/ivanov",
@@ -199,6 +200,43 @@ def test_organizer_registration_requires_contacts(tmp_path):
         assert "телефон" in resp.json()["detail"]["message"]
 
 
+def test_organizer_registration_without_responsibility_is_refused(tmp_path):
+    """Без галочки об ответственности заявка не создаётся вовсе.
+
+    Галочка — входной фильтр, а не строчка для вида: модератор не должен
+    вручную выяснять, готов ли человек отвечать за контент. Поэтому отказ
+    приходит до создания аккаунта, и в очереди модерации ничего не появляется.
+    """
+    db_path = tmp_path / "org-responsibility.sqlite3"
+    with TestClient(create_app(f"sqlite:///{db_path}")) as client:
+        payload = dict(ORGANIZER)
+        payload["accept_responsibility"] = False
+        resp = _register(client, payload)
+        assert resp.status_code == 400, resp.text
+        assert resp.json()["detail"]["code"] == "responsibility_required"
+
+        # Аккаунт не создан: входить не под чем.
+        assert _login(client, "orgnew").status_code == 401
+
+        # И заявки в очереди нет — модератору разбирать нечего.
+        _register(
+            client,
+            {"email": "boss@example.com", "password": PASSWORD, "login": "boss"},
+        )
+        _promote(db_path, "boss@example.com", "admin")
+        admin = _login(client, "boss").json()["access_token"]
+        queue = client.get(
+            "/api/v1/admin/organizer-applications", headers=_auth(admin)
+        ).json()
+        assert queue["total"] == 0
+
+        # С галочкой та же анкета проходит.
+        payload["accept_responsibility"] = True
+        ok = _register(client, payload)
+        assert ok.status_code == 201, ok.text
+        assert ok.json()["organizer_status"] == "pending"
+
+
 # --- Апгрейд посетителя из кабинета ---------------------------------------
 
 
@@ -216,6 +254,7 @@ def test_visitor_applies_from_cabinet_admin_approves(tmp_path):
                 "full_name": "Петров Пётр",
                 "phone": "+79005554433",
                 "city": "Новокузнецк",
+                "accept_responsibility": True,
                 "org_name": "Клуб «Кубик»",
             },
             headers=_auth(visitor),
@@ -226,7 +265,7 @@ def test_visitor_applies_from_cabinet_admin_approves(tmp_path):
         # Вторая заявка поверх висящей — отказ, а не дубль в админке.
         again = client.post(
             "/api/v1/me/organizer-application",
-            json={"full_name": "Петров Пётр", "phone": "+79005554433", "city": "Новокузнецк"},
+            json={"full_name": "Петров Пётр", "phone": "+79005554433", "city": "Новокузнецк", "accept_responsibility": True},
             headers=_auth(visitor),
         )
         assert again.status_code == 409
@@ -264,6 +303,42 @@ def test_visitor_applies_from_cabinet_admin_approves(tmp_path):
         assert any(n["kind"] == "organizer_approved" for n in notes)
 
 
+def test_cabinet_application_without_responsibility_is_refused(tmp_path):
+    """Посетитель без галочки заявку не подаёт: отказано — ничего не создано.
+
+    Проверяется и то, что согласие сохраняется на заявке: модератор видит в
+    карточке, что человек его дал, и не переспрашивает это отдельно.
+    """
+    db_path = tmp_path / "cabinet-responsibility.sqlite3"
+    payload = {
+        "full_name": "Петров Пётр",
+        "phone": "+79001234433",
+        "city": "Новокузнецк",
+    }
+    with TestClient(create_app(f"sqlite:///{db_path}")) as client:
+        _register(client, VISITOR)
+        _verify(db_path, VISITOR["email"])
+        visitor = _login(client, "vasya").json()["access_token"]
+
+        refused = client.post(
+            "/api/v1/me/organizer-application", json=payload, headers=_auth(visitor)
+        )
+        assert refused.status_code == 400, refused.text
+        assert refused.json()["detail"]["code"] == "responsibility_required"
+        mine = client.get("/api/v1/me/organizer-application", headers=_auth(visitor))
+        assert mine.json()["application"] is None
+
+        accepted = client.post(
+            "/api/v1/me/organizer-application",
+            json={**payload, "accept_responsibility": True},
+            headers=_auth(visitor),
+        )
+        assert accepted.status_code == 201, accepted.text
+        body = accepted.json()
+        assert body["responsibility_accepted"] is True
+        assert body["responsibility_accepted_at"]
+
+
 def test_rejected_application_keeps_visitor_and_allows_resubmit(tmp_path):
     db_path = tmp_path / "reject.sqlite3"
     with TestClient(create_app(f"sqlite:///{db_path}")) as client:
@@ -272,7 +347,7 @@ def test_rejected_application_keeps_visitor_and_allows_resubmit(tmp_path):
         visitor = _login(client, "vasya").json()["access_token"]
         client.post(
             "/api/v1/me/organizer-application",
-            json={"full_name": "Петров Пётр", "phone": "+79005554433", "city": "Новокузнецк"},
+            json={"full_name": "Петров Пётр", "phone": "+79005554433", "city": "Новокузнецк", "accept_responsibility": True},
             headers=_auth(visitor),
         )
         _register(
@@ -313,6 +388,7 @@ def test_rejected_application_keeps_visitor_and_allows_resubmit(tmp_path):
                 "full_name": "Петров Пётр",
                 "phone": "+79005554433",
                 "city": "Новокузнецк",
+                "accept_responsibility": True,
                 "inn": "422100000002",
             },
             headers=_auth(visitor),
@@ -343,7 +419,7 @@ def test_organizer_cannot_apply_twice(tmp_path):
         token = _login(client, "orgnew").json()["access_token"]
         resp = client.post(
             "/api/v1/me/organizer-application",
-            json={"full_name": "Иванов", "phone": "+79001234567", "city": "Новокузнецк"},
+            json={"full_name": "Иванов", "phone": "+79001234567", "city": "Новокузнецк", "accept_responsibility": True},
             headers=_auth(token),
         )
         assert resp.status_code == 409
@@ -399,7 +475,7 @@ def test_cabinet_application_notifies_staff(tmp_path):
         visitor = _login(client, "vasya").json()["access_token"]
         applied = client.post(
             "/api/v1/me/organizer-application",
-            json={"full_name": "Петров Пётр", "phone": "+79001234433", "city": "Новокузнецк"},
+            json={"full_name": "Петров Пётр", "phone": "+79001234433", "city": "Новокузнецк", "accept_responsibility": True},
             headers=_auth(visitor),
         )
         assert applied.status_code == 201, applied.text
@@ -429,6 +505,7 @@ def test_moderator_reviews_organizer_applications(tmp_path):
                     "full_name": "Петров Пётр",
                     "phone": "+79001234433",
                     "city": "Новокузнецк",
+                    "accept_responsibility": True,
                 },
                 headers=_auth(visitor),
             ).status_code

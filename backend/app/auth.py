@@ -54,6 +54,9 @@ class RegisterRequest(BaseModel):
     city: str | None = Field(default=None, max_length=120)
     social_personal: str | None = Field(default=None, max_length=300)
     social_org: str | None = Field(default=None, max_length=300)
+    # Галочка «несу ответственность за размещаемый контент». Для организатора
+    # обязательна: роль даёт право публиковать события от своего имени.
+    accept_responsibility: bool = False
     # Токен Яндекс SmartCaptcha. Обязателен только когда капча включена ключами;
     # в dev и тестах поля нет — клиенты, которые о нём не знают, не ломаются.
     captcha_token: str | None = None
@@ -534,6 +537,20 @@ def build_auth_routes(
                         "message": "Заполните обязательные поля: " + ", ".join(missing) + ".",
                     },
                 )
+            if not payload.accept_responsibility:
+                # Сквозная логика с /me/organizer-application: без согласия
+                # заявка не создаётся, и модератор не разбирает «пустую»
+                # ответственность постфактум.
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "responsibility_required",
+                        "message": (
+                            "Отметьте, что вы несёте ответственность за размещаемый "
+                            "контент и ознакомились с Пользовательским соглашением."
+                        ),
+                    },
+                )
         # Логин отдельно от почты: по нему тоже можно войти. Без логина
         # (старые клиенты, тесты) выводим его из адреса, чтобы поле не осталось
         # пустым и вход по логину работал у всех.
@@ -614,6 +631,8 @@ def build_auth_routes(
                 social_personal=org_fields["social_personal"],
                 social_org=org_fields["social_org"],
                 birth_date=user.birth_date,
+                responsibility_accepted=True,
+                responsibility_accepted_at=utcnow(),
             )
             session.add(application)
             session.commit()

@@ -266,6 +266,23 @@ def create_app(
                         _text("UPDATE users SET login = :login WHERE id = :id"),
                         {"login": _candidate, "id": _uid},
                     )
+        # Заявки организатора: галочка ответственности за контент появилась
+        # позже. Старым заявкам ставим 0 (их подавали, когда галочки не было) —
+        # решение принимает модератор, а не подставленное «согласен».
+        if "organizer_applications" in _insp.get_table_names():
+            _acols = {c["name"] for c in _insp.get_columns("organizer_applications")}
+            for _aname, _addl in (
+                ("responsibility_accepted", "BOOLEAN NOT NULL DEFAULT 0"),
+                ("responsibility_accepted_at", "DATETIME"),
+            ):
+                if _aname not in _acols:
+                    with engine.begin() as _conn:
+                        _conn.execute(
+                            _text(
+                                f"ALTER TABLE organizer_applications "
+                                f"ADD COLUMN {_aname} {_addl}"
+                            )
+                        )
         # Почта по уведомлениям: emailed_at — письмо ушло, email_attempts —
         # сколько раз пытались. Без этих колонок ORM не прочитает уведомления,
         # поэтому добиваем их здесь же, до первого запроса.
